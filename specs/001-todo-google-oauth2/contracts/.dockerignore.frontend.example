@@ -1,0 +1,41 @@
+# .dockerignore for frontend/
+# Copy to frontend/.dockerignore
+
+# Git
+.git
+.gitignore
+
+# Documentation
+*.md
+README.md
+docs/
+
+# Dependencies (will be installed in container)
+node_modules/
+
+# Build output
+build/
+dist/
+
+# Test coverage
+coverage/
+
+# Environment variables
+.env
+.env.*
+.env.local
+.env.production
+
+# IDE
+.vscode/
+.idea/
+
+# Temporary files
+*.log
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db

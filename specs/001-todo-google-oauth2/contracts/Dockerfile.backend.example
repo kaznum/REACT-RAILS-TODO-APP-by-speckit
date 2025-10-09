@@ -1,0 +1,29 @@
+# Backend Dockerfile (Rails API)
+# Copy this file to backend/Dockerfile
+
+FROM ruby:3.2-alpine
+
+# Install dependencies
+RUN apk add --no-cache \
+    build-base \
+    postgresql-dev \
+    postgresql-client \
+    tzdata \
+    nodejs \
+    yarn
+
+# Set working directory
+WORKDIR /app
+
+# Install gems
+COPY Gemfile Gemfile.lock ./
+RUN bundle install
+
+# Copy application code
+COPY . .
+
+# Expose port
+EXPOSE 3000
+
+# Default command
+CMD ["bundle", "exec", "rails", "server", "-b", "0.0.0.0"]

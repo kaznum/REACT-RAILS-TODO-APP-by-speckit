@@ -1,0 +1,63 @@
+# Docker Compose Configuration for TODO Management Application (SQLite)
+# Copy this file to repository root as `docker-compose.yml`
+
+version: '3.8'
+
+services:
+  # Rails API Backend (with embedded SQLite)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: todo_app_backend
+    command: bundle exec rails server -b 0.0.0.0
+    volumes:
+      - ./backend:/app
+      - backend_bundle:/usr/local/bundle  # Cache gems
+      - sqlite_data:/app/db  # Persistent SQLite database
+    ports:
+      - "3000:3000"
+    environment:
+      - RAILS_ENV=development
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - DATABASE_URL=sqlite3:db/development.sqlite3
+    env_file:
+      - ./backend/.env
+    networks:
+      - todo_network
+    stdin_open: true
+    tty: true
+
+  # React Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: todo_app_frontend
+    command: npm start
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules  # Prevent overwriting node_modules
+    ports:
+      - "3001:3000"  # Map container 3000 to host 3001
+    environment:
+      - REACT_APP_API_URL=http://localhost:3000/api/v1
+      - REACT_APP_FRONTEND_URL=http://localhost:3001
+      - CHOKIDAR_USEPOLLING=true  # Enable hot reload in Docker
+    env_file:
+      - ./frontend/.env.local
+    depends_on:
+      - backend
+    networks:
+      - todo_network
+    stdin_open: true
+    tty: true
+
+networks:
+  todo_network:
+    driver: bridge
+
+volumes:
+  sqlite_data:  # Named volume for SQLite database file persistence
+  backend_bundle:  # Cache for Ruby gems
