@@ -34,9 +34,9 @@ RSpec.describe Api::V1::AuthController, type: :controller do
       end
 
       context 'when user is created successfully' do
-        it 'redirects to frontend with access token' do
+        it 'redirects to frontend with access token in URL fragment' do
           get :google_oauth2_callback
-          expect(response).to redirect_to(%r{#{frontend_url}/auth/callback\?access_token=})
+          expect(response).to redirect_to(%r{#{frontend_url}/auth/callback#access_token=})
         end
 
         it 'sets refresh token cookie' do

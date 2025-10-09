@@ -19,18 +19,45 @@ describe('authService', () => {
   });
 
   describe('handleOAuthCallback', () => {
-    it('extracts and stores access token from URL params', () => {
+    beforeEach(() => {
+      // Mock window.history.replaceState
+      delete window.history;
+      window.history = { replaceState: jest.fn() };
+      delete window.location;
+      window.location = { pathname: '/auth/callback', search: '', hash: '' };
+    });
+
+    it('extracts and stores access token from URL hash fragment', () => {
+      const urlParams = new URLSearchParams('');
+      const hash = '#access_token=test_token_123';
+      const token = authService.handleOAuthCallback(urlParams, hash);
+
+      expect(token).toBe('test_token_123');
+      expect(setTokens).toHaveBeenCalledWith('test_token_123', null);
+      expect(window.history.replaceState).toHaveBeenCalledWith(null, '', '/auth/callback');
+    });
+
+    it('extracts and stores access token from URL params (backward compatibility)', () => {
       const urlParams = new URLSearchParams('access_token=test_token_123');
-      const token = authService.handleOAuthCallback(urlParams);
+      const token = authService.handleOAuthCallback(urlParams, '');
 
       expect(token).toBe('test_token_123');
       expect(setTokens).toHaveBeenCalledWith('test_token_123', null);
     });
 
+    it('prefers hash fragment over query parameter', () => {
+      const urlParams = new URLSearchParams('access_token=query_token');
+      const hash = '#access_token=hash_token';
+      const token = authService.handleOAuthCallback(urlParams, hash);
+
+      expect(token).toBe('hash_token');
+      expect(setTokens).toHaveBeenCalledWith('hash_token', null);
+    });
+
     it('returns null and logs error when error param is present', () => {
       const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
       const urlParams = new URLSearchParams('error=authentication_failed');
-      const token = authService.handleOAuthCallback(urlParams);
+      const token = authService.handleOAuthCallback(urlParams, '');
 
       expect(token).toBeNull();
       expect(consoleErrorSpy).toHaveBeenCalledWith('OAuth error:', 'authentication_failed');
@@ -41,10 +68,18 @@ describe('authService', () => {
 
     it('returns null when no token or error in params', () => {
       const urlParams = new URLSearchParams('');
-      const token = authService.handleOAuthCallback(urlParams);
+      const token = authService.handleOAuthCallback(urlParams, '');
 
       expect(token).toBeNull();
       expect(setTokens).not.toHaveBeenCalled();
+    });
+
+    it('clears hash from URL after extracting token', () => {
+      const urlParams = new URLSearchParams('');
+      const hash = '#access_token=test_token';
+      authService.handleOAuthCallback(urlParams, hash);
+
+      expect(window.history.replaceState).toHaveBeenCalledWith(null, '', '/auth/callback');
     });
   });
 

@@ -11,20 +11,39 @@ const authService = {
 
   /**
    * Handle OAuth callback - extract and store access token from URL
+   * Supports both hash (#access_token=...) and query (?access_token=...) for backward compatibility
    * @param {URLSearchParams} urlParams - URL search params from callback
+   * @param {string} hash - URL hash fragment
    * @returns {string|null} - Access token if successful
    */
-  handleOAuthCallback(urlParams) {
-    const accessToken = urlParams.get('access_token');
+  handleOAuthCallback(urlParams, hash = window.location.hash) {
+    // Check for errors in query parameters (errors are sent as query params, not hash)
     const error = urlParams.get('error');
-
     if (error) {
       console.error('OAuth error:', error);
       return null;
     }
 
+    // Try to extract access_token from hash fragment first (new secure method)
+    let accessToken = null;
+    if (hash && hash.startsWith('#')) {
+      const hashParams = new URLSearchParams(hash.substring(1));
+      accessToken = hashParams.get('access_token');
+    }
+
+    // Fall back to query parameter for backward compatibility
+    if (!accessToken) {
+      accessToken = urlParams.get('access_token');
+    }
+
     if (accessToken) {
       setTokens(accessToken, null); // Refresh token is in httpOnly cookie
+
+      // Clear the hash from URL to prevent token from staying in browser history
+      if (hash && hash.includes('access_token')) {
+        window.history.replaceState(null, '', window.location.pathname + window.location.search);
+      }
+
       return accessToken;
     }
 

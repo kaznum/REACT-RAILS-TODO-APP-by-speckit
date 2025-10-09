@@ -38,8 +38,9 @@ module Api
             expires: 7.days.from_now
           }
 
-          # Redirect to frontend with access token
-          redirect_to "#{ENV.fetch('REACT_APP_FRONTEND_URL', nil)}/auth/callback?access_token=#{access_token}",
+          # Redirect to frontend with access token in URL fragment (not query parameter)
+          # Using fragment (#) prevents the token from being sent to server logs or referrer headers
+          redirect_to "#{ENV.fetch('REACT_APP_FRONTEND_URL', nil)}/auth/callback#access_token=#{access_token}",
                       allow_other_host: true
         else
           redirect_to "#{ENV.fetch('REACT_APP_FRONTEND_URL', nil)}/login?error=user_creation_failed",
