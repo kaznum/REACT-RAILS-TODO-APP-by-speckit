@@ -28,6 +28,7 @@ const TodoItem = ({ todo, onToggleComplete, onEdit, onDelete }) => {
     <div className={`todo-item ${isCompleted ? 'completed' : ''} ${isOverdue(todo.deadline) ? 'overdue' : ''}`}>
       <div className="todo-checkbox">
         <Checkbox
+          id={`todo-checkbox-${todo.id}`}
           checked={isCompleted}
           onChange={handleCheckboxChange}
           aria-label={`"${todo.name}"を${isCompleted ? '未完了' : '完了'}にする`}
