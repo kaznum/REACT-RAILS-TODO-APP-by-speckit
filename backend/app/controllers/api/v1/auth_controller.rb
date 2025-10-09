@@ -18,7 +18,8 @@ module Api
         auth_hash = request.env['omniauth.auth']
 
         unless auth_hash
-          redirect_to "#{ENV.fetch('REACT_APP_FRONTEND_URL', nil)}/login?error=authentication_failed"
+          redirect_to "#{ENV.fetch('REACT_APP_FRONTEND_URL', nil)}/login?error=authentication_failed",
+                      allow_other_host: true
           return
         end
 
@@ -38,13 +39,15 @@ module Api
           }
 
           # Redirect to frontend with access token
-          redirect_to "#{ENV.fetch('REACT_APP_FRONTEND_URL', nil)}/auth/callback?access_token=#{access_token}"
+          redirect_to "#{ENV.fetch('REACT_APP_FRONTEND_URL', nil)}/auth/callback?access_token=#{access_token}",
+                      allow_other_host: true
         else
-          redirect_to "#{ENV.fetch('REACT_APP_FRONTEND_URL', nil)}/login?error=user_creation_failed"
+          redirect_to "#{ENV.fetch('REACT_APP_FRONTEND_URL', nil)}/login?error=user_creation_failed",
+                      allow_other_host: true
         end
       rescue StandardError => e
         Rails.logger.error("OAuth callback error: #{e.message}")
-        redirect_to "#{ENV.fetch('REACT_APP_FRONTEND_URL', nil)}/login?error=server_error"
+        redirect_to "#{ENV.fetch('REACT_APP_FRONTEND_URL', nil)}/login?error=server_error", allow_other_host: true
       end
 
       # POST /api/v1/auth/refresh
