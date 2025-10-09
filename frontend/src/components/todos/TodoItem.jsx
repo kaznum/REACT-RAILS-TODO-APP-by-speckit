@@ -5,8 +5,10 @@ import { formatJapaneseDate } from '../../utils/dateFormat';
 import './TodoItem.css';
 
 const TodoItem = ({ todo, onToggleComplete, onEdit, onDelete }) => {
+  const isCompleted = !!todo.completed;
+
   const handleCheckboxChange = () => {
-    onToggleComplete(todo.id, !todo.completed);
+    onToggleComplete(todo.id, !isCompleted);
   };
 
   const getPriorityLabel = (priority) => {
@@ -18,17 +20,17 @@ const TodoItem = ({ todo, onToggleComplete, onEdit, onDelete }) => {
   };
 
   const isOverdue = (deadline) => {
-    if (!deadline || todo.completed) return false;
+    if (!deadline || isCompleted) return false;
     return new Date(deadline) < new Date();
   };
 
   return (
-    <div className={`todo-item ${todo.completed ? 'completed' : ''} ${isOverdue(todo.deadline) ? 'overdue' : ''}`}>
+    <div className={`todo-item ${isCompleted ? 'completed' : ''} ${isOverdue(todo.deadline) ? 'overdue' : ''}`}>
       <div className="todo-checkbox">
         <Checkbox
-          checked={todo.completed}
+          checked={isCompleted}
           onChange={handleCheckboxChange}
-          aria-label={`"${todo.name}"を${todo.completed ? '未完了' : '完了'}にする`}
+          aria-label={`"${todo.name}"を${isCompleted ? '未完了' : '完了'}にする`}
         />
       </div>
 

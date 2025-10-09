@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import authService from '../../services/authService';
 import { MESSAGES } from '../../constants/messages';
@@ -8,14 +8,17 @@ import './OAuthCallback.css';
 const OAuthCallback = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { login } = useAuth();
   const [error, setError] = useState(null);
 
   useEffect(() => {
     const handleCallback = async () => {
       try {
-        // Extract access token from URL
-        const accessToken = authService.handleOAuthCallback(searchParams);
+        // Extract access token from URL (hash fragment or query params)
+        // Use location.hash from React Router as it properly handles hash fragments
+        const hash = location.hash || window.location.hash;
+        const accessToken = authService.handleOAuthCallback(searchParams, hash);
 
         if (!accessToken) {
           const errorMessage = searchParams.get('error') || MESSAGES.auth.authenticationFailed;
@@ -37,7 +40,7 @@ const OAuthCallback = () => {
     };
 
     handleCallback();
-  }, [searchParams, login, navigate]);
+  }, [searchParams, location.hash, login, navigate]);
 
   if (error) {
     return (
