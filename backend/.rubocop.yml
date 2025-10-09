@@ -1,0 +1,30 @@
+plugins:
+  - rubocop-rails
+
+AllCops:
+  NewCops: enable
+  TargetRubyVersion: 3.2
+  Exclude:
+    - 'bin/**/*'
+    - 'db/schema.rb'
+    - 'db/migrate/*.rb'
+    - 'vendor/**/*'
+    - 'node_modules/**/*'
+
+# Relax some overly strict defaults
+Style/Documentation:
+  Enabled: false
+
+Metrics/MethodLength:
+  Max: 35
+
+Metrics/AbcSize:
+  Max: 30
+
+Metrics/BlockLength:
+  Exclude:
+    - 'config/**/*'
+    - 'spec/**/*'
+
+Layout/LineLength:
+  Max: 120

@@ -1,0 +1,43 @@
+# .dockerignore for backend/
+# Copy to backend/.dockerignore
+
+# Git
+.git
+.gitignore
+
+# Documentation
+*.md
+README.md
+docs/
+
+# Logs
+log/
+*.log
+
+# Temporary files
+tmp/
+*.swp
+*.swo
+*~
+
+# Test coverage
+coverage/
+
+# Environment variables
+.env
+.env.*
+
+# Dependencies (will be installed in container)
+vendor/bundle
+
+# Database
+*.sqlite3
+db/*.sqlite3
+
+# Assets
+public/assets
+public/packs
+public/packs-test
+
+# Node modules (if any)
+node_modules/

@@ -1,0 +1,508 @@
+openapi: 3.0.3
+info:
+  title: TODO Management API
+  description: REST API for managing personal TODO items with Google OAuth2 authentication
+  version: 1.0.0
+  contact:
+    name: API Support
+
+servers:
+  - url: http://localhost:3000/api/v1
+    description: Development server
+  - url: https://api.todo-app.example.com/api/v1
+    description: Production server
+
+tags:
+  - name: Authentication
+    description: Google OAuth2 authentication endpoints
+  - name: Todos
+    description: TODO CRUD operations
+
+paths:
+  /auth/google_oauth2/callback:
+    get:
+      tags:
+        - Authentication
+      summary: Google OAuth2 callback
+      description: Handles Google OAuth2 callback after user authentication, issues JWT tokens
+      operationId: googleCallback
+      parameters:
+        - name: code
+          in: query
+          required: true
+          description: Authorization code from Google
+          schema:
+            type: string
+        - name: state
+          in: query
+          required: false
+          description: CSRF protection state parameter
+          schema:
+            type: string
+      responses:
+        '302':
+          description: Redirect to frontend with JWT tokens
+          headers:
+            Location:
+              schema:
+                type: string
+                example: https://app.example.com/auth/callback?access_token=eyJhbGc...
+            Set-Cookie:
+              schema:
+                type: string
+                example: refresh_token=eyJhbGc...; Path=/; HttpOnly; Secure; SameSite=Strict
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /auth/sign_out:
+    delete:
+      tags:
+        - Authentication
+      summary: Sign out current user
+      description: Invalidates the user's JWT refresh token (clears httpOnly cookie)
+      operationId: signOut
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Successfully signed out (refresh token cookie cleared)
+          headers:
+            Set-Cookie:
+              schema:
+                type: string
+                example: refresh_token=; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=0
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /auth/refresh:
+    post:
+      tags:
+        - Authentication
+      summary: Refresh access token
+      description: Issues a new access token using the refresh token from httpOnly cookie
+      operationId: refreshToken
+      responses:
+        '200':
+          description: New access token issued
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+                    description: New JWT access token (15min expiration)
+                    example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+                  token_type:
+                    type: string
+                    example: Bearer
+                  expires_in:
+                    type: integer
+                    description: Access token lifetime in seconds
+                    example: 900
+        '401':
+          description: Refresh token invalid or expired
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: unauthorized
+                message: Refresh token expired or invalid
+
+  /auth/current_user:
+    get:
+      tags:
+        - Authentication
+      summary: Get current authenticated user
+      description: Returns the currently authenticated user's information from JWT token
+      operationId: getCurrentUser
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Current user information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+
+  /todos:
+    get:
+      tags:
+        - Todos
+      summary: List all TODOs for current user
+      description: Returns all TODO items for the authenticated user, sorted by priority and deadline
+      operationId: listTodos
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: priority
+          in: query
+          required: false
+          description: Filter by priority level
+          schema:
+            type: string
+            enum: [high, medium, low]
+      responses:
+        '200':
+          description: List of TODO items
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Todo'
+                  meta:
+                    type: object
+                    properties:
+                      total:
+                        type: integer
+                        description: Total number of TODOs
+                        example: 42
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      tags:
+        - Todos
+      summary: Create a new TODO
+      description: Creates a new TODO item for the authenticated user
+      operationId: createTodo
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TodoCreate'
+      responses:
+        '201':
+          description: TODO created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Todo'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+  /todos/{id}:
+    get:
+      tags:
+        - Todos
+      summary: Get a specific TODO
+      description: Returns a single TODO item by ID (must belong to current user)
+      operationId: getTodo
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: TODO ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: TODO details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Todo'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+    patch:
+      tags:
+        - Todos
+      summary: Update a TODO
+      description: Updates an existing TODO item (must belong to current user)
+      operationId: updateTodo
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: TODO ID
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TodoUpdate'
+      responses:
+        '200':
+          description: TODO updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Todo'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+
+    delete:
+      tags:
+        - Todos
+      summary: Delete a TODO
+      description: Permanently deletes a TODO item (must belong to current user)
+      operationId: deleteTodo
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: TODO ID
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '204':
+          description: TODO deleted successfully
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT access token obtained from Google OAuth2 callback or /auth/refresh endpoint
+
+  schemas:
+    User:
+      type: object
+      required:
+        - id
+        - email
+        - name
+        - created_at
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Unique user identifier
+          example: 123
+        email:
+          type: string
+          format: email
+          description: User's email address from Google account
+          example: user@example.com
+        name:
+          type: string
+          description: User's display name from Google account
+          example: John Doe
+        created_at:
+          type: string
+          format: date-time
+          description: Account creation timestamp
+          example: "2025-01-15T10:30:00Z"
+
+    Todo:
+      type: object
+      required:
+        - id
+        - user_id
+        - name
+        - priority
+        - deadline
+        - completed
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Unique TODO identifier
+          example: 456
+        user_id:
+          type: integer
+          format: int64
+          description: Owner user ID
+          example: 123
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: TODO description
+          example: Finish project proposal
+        priority:
+          type: string
+          enum: [high, medium, low]
+          description: Urgency level
+          example: high
+        deadline:
+          type: string
+          format: date
+          description: Target completion date (ISO 8601)
+          example: "2025-10-15"
+        completed:
+          type: boolean
+          description: Completion status
+          example: false
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+          example: "2025-10-09T14:22:00Z"
+        updated_at:
+          type: string
+          format: date-time
+          description: Last update timestamp
+          example: "2025-10-09T14:22:00Z"
+
+    TodoCreate:
+      type: object
+      required:
+        - name
+        - priority
+        - deadline
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: TODO description
+          example: Finish project proposal
+        priority:
+          type: string
+          enum: [high, medium, low]
+          description: Urgency level
+          example: high
+        deadline:
+          type: string
+          format: date
+          description: Target completion date (ISO 8601)
+          example: "2025-10-15"
+
+    TodoUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: TODO description
+          example: Finish project proposal
+        priority:
+          type: string
+          enum: [high, medium, low]
+          description: Urgency level
+          example: medium
+        deadline:
+          type: string
+          format: date
+          description: Target completion date (ISO 8601)
+          example: "2025-10-16"
+        completed:
+          type: boolean
+          description: Completion status
+          example: true
+
+    Error:
+      type: object
+      required:
+        - error
+        - message
+      properties:
+        error:
+          type: string
+          description: Error code
+          example: validation_error
+        message:
+          type: string
+          description: Human-readable error message
+          example: Name can't be blank
+        details:
+          type: object
+          description: Field-level validation errors
+          additionalProperties:
+            type: array
+            items:
+              type: string
+          example:
+            name: ["can't be blank", "is too short (minimum is 1 character)"]
+            priority: ["is not included in the list"]
+
+  responses:
+    UnauthorizedError:
+      description: Authentication required or session expired
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: unauthorized
+            message: You must be signed in to access this resource
+
+    NotFoundError:
+      description: Resource not found or doesn't belong to current user
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: not_found
+            message: TODO not found
+
+    ValidationError:
+      description: Validation error on request body
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: validation_error
+            message: Validation failed
+            details:
+              name: ["can't be blank"]
+              priority: ["is not included in the list"]
+
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: internal_server_error
+            message: An unexpected error occurred
