@@ -18,11 +18,14 @@ class ApplicationController < ActionController::API
   end
 
   # Authorize the request by verifying the JWT token
+  # Only accepts access tokens, not refresh tokens
   def authorize_request
-    return if current_user
+    unless current_user && valid_access_token?
+      render json: { error: 'Unauthorized' }, status: :unauthorized
+      return nil
+    end
 
-    render json: { error: 'Unauthorized' }, status: :unauthorized
-    nil
+    true
   end
 
   # Extract token from Authorization header
@@ -38,6 +41,12 @@ class ApplicationController < ActionController::API
   # @return [Hash, nil] The decoded payload or nil
   def decoded_token
     @decoded_token ||= (JwtService.decode_token(auth_token) if auth_token)
+  end
+
+  # Verify that the token is an access token (not a refresh token)
+  # @return [Boolean] True if token type is 'access'
+  def valid_access_token?
+    decoded_token&.dig('type') == 'access'
   end
 
   # Handle record not found errors

@@ -50,6 +50,13 @@ RSpec.describe Api::V1::TodosController, type: :controller do
       get :index
       expect(response).to have_http_status(:unauthorized)
     end
+
+    it 'returns 401 when using refresh token instead of access token' do
+      refresh_token = JwtService.encode_refresh_token(user.id)
+      request.headers['Authorization'] = "Bearer #{refresh_token}"
+      get :index
+      expect(response).to have_http_status(:unauthorized)
+    end
   end
 
   describe 'POST #create' do
