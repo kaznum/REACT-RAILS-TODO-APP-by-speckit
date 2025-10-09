@@ -5,6 +5,9 @@ Google OAuth2認証を使用したReact + RailsのTODO管理アプリケーシ�
 ## 機能
 
 - **Google OAuth2認証** - Googleアカウントでのログイン
+  - セキュアなトークン管理（Access Token: 15分、Refresh Token: 7日間）
+  - URL fragmentによるトークン受け渡し（ログ・履歴への露出を防止）
+  - トークンタイプ検証（Refresh tokenでのAPI不正利用を防止）
 - **TODO管理** - タスクの作成、編集、削除、完了/未完了の切り替え
 - **優先度設定** - 高・中・低の3段階で優先度を設定
 - **期限管理** - タスクに期限を設定
@@ -46,8 +49,9 @@ Google OAuth2認証を使用したReact + RailsのTODO管理アプリケーシ�
 2. 「APIとサービス」→「認証情報」でOAuth 2.0クライアントIDを作成
 3. 承認済みのリダイレクトURIに以下を追加:
    ```
-   http://localhost:3000/api/v1/auth/google_oauth2/callback
+   http://localhost:3000/auth/google_oauth2/callback
    ```
+   **注意**: `/api/v1`は含めません。OmniAuthのコールバックはルートパスに設定されます。
 4. クライアントIDとクライアントシークレットを取得
 
 ### 2. 環境変数の設定
@@ -91,40 +95,40 @@ docker-compose exec backend rails db:create db:migrate
 ### テストの実行
 
 ```bash
-# Backend (RSpec) - 73 tests
-docker-compose exec backend bundle exec rspec
+# Backend (RSpec) - 74 tests
+docker compose exec backend bundle exec rspec
 
-# Frontend (Jest) - 52 tests
-docker-compose exec frontend npm test -- --watchAll=false
+# Frontend (Jest) - 55 tests
+docker compose exec frontend npm test -- --watchAll=false
 ```
 
 ### Lintの実行
 
 ```bash
 # Backend (RuboCop)
-docker-compose exec backend bundle exec rubocop
+docker compose exec backend bundle exec rubocop
 
 # 自動修正
-docker-compose exec backend bundle exec rubocop -A
+docker compose exec backend bundle exec rubocop -A
 
 # Frontend (ESLint)
-docker-compose exec frontend npm run lint
+docker compose exec frontend npm run lint
 
 # 自動修正
-docker-compose exec frontend npm run lint:fix
+docker compose exec frontend npm run lint:fix
 ```
 
 ### データベース操作
 
 ```bash
 # マイグレーション実行
-docker-compose exec backend rails db:migrate
+docker compose exec backend rails db:migrate
 
 # データベースリセット
-docker-compose exec backend rails db:reset
+docker compose exec backend rails db:reset
 
 # Rails コンソール
-docker-compose exec backend rails console
+docker compose exec backend rails console
 ```
 
 ## プロジェクト構成
@@ -168,17 +172,33 @@ docker-compose exec backend rails console
 - `PATCH /api/v1/todos/:id` - TODO更新
 - `DELETE /api/v1/todos/:id` - TODO削除
 
+## セキュリティ
+
+### 認証・認可
+- **JWT トークン**: Access Token（15分）とRefresh Token（7日間）の二段階認証
+- **トークンタイプ検証**: Refresh tokenでの保護されたAPI利用を防止
+- **httpOnly Cookie**: Refresh tokenはhttpOnly cookieで保存し、XSS攻撃を防止
+- **URL Fragment**: OAuth callbackでaccess tokenをURL fragment（#）で受け渡し、以下を防止：
+  - サーバーログへの露出
+  - ブラウザ履歴への記録
+  - Referrerヘッダーでの漏洩
+  - アクセス解析ツールへの送信
+
+### データアクセス制御
+- **ユーザー分離**: 各ユーザーは自身のTODOのみアクセス可能
+- **認証必須**: 全てのAPI エンドポイント（認証系を除く）で認証を要求
+
 ## テストカバレッジ
 
-### Backend (73 tests)
+### Backend (74 tests)
 - **Models**: User, Todo のバリデーション、アソシエーション
-- **Controllers**: 認証、TODO CRUD、フィルタリング、認可
+- **Controllers**: 認証、TODO CRUD、フィルタリング、認可、トークンタイプ検証
 - **Services**: JWT、Google OAuth処理
 
-### Frontend (52 tests)
-- **Components**: TodoList、App
+### Frontend (55 tests)
+- **Components**: TodoList、TodoItem、App
 - **Hooks**: useAuth
-- **Services**: authService、todoService
+- **Services**: authService（URL fragment対応）、todoService
 
 ## トラブルシューティング
 
@@ -186,7 +206,7 @@ docker-compose exec backend rails console
 
 ```bash
 # コンテナを停止
-docker-compose down
+docker compose down
 
 # ポート使用状況確認
 lsof -i :3000
@@ -196,16 +216,26 @@ lsof -i :3001
 ### データベースのリセット
 
 ```bash
-docker-compose exec backend rails db:drop db:create db:migrate
+docker compose exec backend rails db:drop db:create db:migrate
 ```
 
 ### コンテナの再ビルド
 
 ```bash
-docker-compose down
-docker-compose build --no-cache
-docker-compose up
+docker compose down
+docker compose build --no-cache
+docker compose up
 ```
+
+### WebSocketエラーが出る場合
+
+フロントエンドで`WebSocket connection failed`エラーが出る場合、`frontend/.env.local`に以下を追加：
+
+```bash
+WDS_SOCKET_PORT=0
+```
+
+これにより、開発サーバーはWebSocketの代わりにポーリングを使用します。
 
 ## ライセンス
 

@@ -3,132 +3,130 @@
 **Feature**: 001-todo-google-oauth2
 **Architecture**: React (frontend) + Rails API (backend) + SQLite (database)
 **Authentication**: Google OAuth2 → JWT (access + refresh tokens)
+**Status**: ✅ **COMPLETED** with security enhancements
+**Last Updated**: 2025-10-10
 
 ---
 
-## Completed Setup (Phase 1)
+## ✅ Implementation Complete
 
-### ✅ Files Created
+All user stories and features have been successfully implemented and tested.
 
-1. **docker-compose.yml** - Docker Compose configuration (2 containers: frontend, backend)
-2. **SETUP.md** - Comprehensive setup instructions for project initialization
-3. **backend/Gemfile** - Rails dependencies including JWT and OAuth gems
-4. **backend/Dockerfile** - Backend container configuration
-5. **backend/.env.example** - Backend environment variable template
-6. **backend/.rubocop.yml** - Ruby linting configuration
-7. **frontend/.env.example** - Frontend environment variable template
-8. **frontend/.eslintrc.json** - JavaScript linting configuration
-
-### 📋 Next Steps Required
-
-**IMPORTANT**: Docker daemon must be running to proceed with implementation.
-
-#### Step 1: Start Docker Desktop
-Ensure Docker Desktop is running before executing any commands.
-
-#### Step 2: Generate Rails & React Applications
-
-```bash
-# Generate Rails API backend
-docker run --rm -v "$(pwd)/backend:/app" -w /app ruby:3.2-alpine sh -c "
-  apk add --no-cache build-base sqlite-dev nodejs yarn &&
-  gem install rails -v 7.1.0 &&
-  rails new . --api --database=sqlite3 --skip-test --force
-"
-
-# Generate React frontend
-docker run --rm -v "$(pwd)/frontend:/app" -w /app node:18-alpine sh -c "
-  npx create-react-app . --template cra-template
-"
-```
-
-#### Step 3: Install Dependencies
-
-```bash
-# Update backend Gemfile (add gems from backend/Gemfile)
-# Then install:
-docker-compose run --rm backend bundle install
-
-# Update frontend package.json (add axios, react-router-dom, date-fns)
-# Then install:
-docker-compose run --rm frontend npm install
-```
-
-#### Step 4: Configure Environment
-
-```bash
-# Copy and customize .env files
-cp backend/.env.example backend/.env
-cp frontend/.env.example frontend/.env.local
-
-# Generate Rails secrets
-docker-compose run --rm backend rails secret  # Copy to SECRET_KEY_BASE
-docker-compose run --rm backend rails secret  # Copy to JWT_SECRET_KEY
-
-# Add Google OAuth2 credentials to backend/.env
-```
-
-#### Step 5: Initialize Database
-
-```bash
-docker-compose exec backend rails db:create
-docker-compose exec backend rails db:migrate
-```
+### Test Results
+- **Backend (RSpec)**: 74 tests, 0 failures ✅
+- **Frontend (Jest)**: 55 tests, 0 failures ✅
+- **Linters**: All passing (RuboCop, ESLint) ✅
 
 ---
 
-## Implementation Tasks Remaining
+## Completed Features
 
-### Phase 2: Foundational (T011-T030)
-**Status**: Not Started
-**Blockers**: Requires Rails & React apps generated
+### Phase 1: Project Setup ✅
+- Docker environment configured
+- Rails 7.1 API backend with JWT authentication
+- React 18.2 SPA frontend
+- SQLite database with migrations
+- Linting configured (RuboCop, ESLint)
+- Comprehensive test suites (RSpec, Jest)
 
-**Tasks**:
-- JWT service implementation
-- User & Todo models with migrations
-- Database indexes
-- ApplicationController with JWT verification
-- Serializers
-- Base API routing
-- Token management service (frontend)
-- Axios client with Bearer token auth
-- Shared React components (Button, Checkbox, Modal)
+### Phase 2: Authentication (User Story 1) ✅
+- Google OAuth2 integration via OmniAuth
+- JWT token service (access: 15min, refresh: 7 days)
+- Secure token management
+  - **URL Fragment**: Access token passed via hash (#) to prevent logging
+  - **httpOnly Cookie**: Refresh token stored securely
+  - **Token Type Verification**: Prevents refresh token misuse
+- Auto-refresh mechanism with Axios interceptors
+- Session expiry handling with modal
+- User model with Google ID association
+- Protected API endpoints with authorization
 
-### Phase 3: User Story 1 - Authentication (T031-T040)
-**Status**: Not Started
-**Dependencies**: Phase 2 complete
+**Security Enhancements**:
+- Access tokens delivered via URL fragment instead of query parameters
+- React Router's `location.hash` properly handled
+- Token type validation in ApplicationController
+- Browser history automatically cleaned after token extraction
 
-**Tasks**:
-- AuthController (OAuth callback, refresh, sign_out, current_user)
-- GoogleOAuthService
-- Authentication routes
-- Token extraction from OAuth callback
-- authService (frontend)
-- useAuth hook
-- LoginPage component
-- OAuthCallback handler page
-- App.jsx with routing and auth context
+### Phase 3: TODO Management (User Stories 2-6) ✅
 
-### Phase 4-8: User Stories 2-6
-**Status**: Not Started
-**Dependencies**: Phase 3 complete
+#### View TODO List (User Story 2)
+- Todo model with priority enum (high/medium/low)
+- Default sorting by priority → deadline → created_at
+- User-specific TODO filtering (data isolation)
+- Completion status display with checkboxes
+- Empty state UI
 
-- US2: View TODO list (sorting by priority/deadline)
-- US3: Filter by priority
-- US4: Create TODOs
-- US5: Edit TODOs
-- US6: Delete TODOs
+#### Filter by Priority (User Story 3)
+- Priority filter UI with button group
+- Filter persistence during session
+- "All" filter option
+- Filter + sort combination
 
-### Phase 9: Polish & Validation (T083-T094)
-**Status**: Not Started
-**Dependencies**: All user stories complete
+#### Create TODOs (User Story 4)
+- Todo creation form with validation
+- Name field (required, max 255 chars)
+- Priority dropdown (high/medium/low)
+- Deadline calendar picker
+- Auto-set completion status (incomplete by default)
+- Immediate list update after creation
 
-- Loading states
-- Error boundaries
+#### Edit TODOs (User Story 5)
+- Inline editing capability
+- Update name, priority, deadline, completion status
+- Validation on update
+- Optimistic UI updates
+- Checkbox toggle for completion
+
+#### Delete TODOs (User Story 6)
+- Delete button with confirmation
+- Immediate removal from list
+- User authorization check (cannot delete others' TODOs)
+
+### Phase 4: UI/UX Polish ✅
+- Japanese UI throughout
 - Responsive design
-- WCAG 2.1 AA accessibility
-- End-to-end validation
-- Linting
+- Loading states
+- Error handling with user-friendly messages
+- Accessibility (ARIA labels, keyboard navigation)
+- Overdue task indicators
+- Priority-based color coding
+
+### Phase 5: Bug Fixes & Optimizations ✅
+- Fixed Checkbox prop type warnings (boolean conversion)
+- Fixed missing `id` prop for Checkbox components
+- Removed WebSocket connection errors (dev server polling mode)
+- Fixed OAuth callback hash handling with React Router
+- Cleaned up development environment configuration
+
+---
+
+## Security Implementation
+
+### Authentication Security
+1. **JWT Token Management**
+   - Access Token: 15 minutes (short-lived, in localStorage)
+   - Refresh Token: 7 days (httpOnly cookie, server-side only)
+   - Token type field in JWT payload ('access' vs 'refresh')
+
+2. **OAuth Callback Security**
+   - Access token passed via URL fragment (#access_token=...)
+   - Prevents exposure in:
+     - Server logs
+     - Browser history
+     - Referrer headers
+     - Analytics tools
+   - URL cleaned immediately after token extraction
+
+3. **API Security**
+   - Token type verification prevents refresh token API abuse
+   - User-specific data isolation
+   - Authorization checks on all endpoints
+   - Automatic token refresh on 401 errors
+
+### Data Security
+- User data isolation (each user sees only their TODOs)
+- SQL injection prevention (ActiveRecord parameterized queries)
+- XSS prevention (React's built-in escaping)
 
 ---
 
@@ -138,8 +136,8 @@ docker-compose exec backend rails db:migrate
 1. User authenticates via Google OAuth2
 2. Backend receives callback → creates/updates User
 3. Backend generates JWT access token (15min) + refresh token (7d)
-4. Access token returned in redirect URL, refresh token in httpOnly cookie
-5. Frontend extracts access token from URL → stores in localStorage
+4. **Access token returned in URL fragment (#)**, refresh token in httpOnly cookie
+5. Frontend extracts access token from `location.hash` → stores in localStorage
 6. All API requests include `Authorization: Bearer <token>`
 7. On 401: Axios interceptor calls `/auth/refresh` automatically
 8. If refresh succeeds: Retry original request with new token
@@ -157,58 +155,155 @@ docker-compose exec backend rails db:migrate
 
 ---
 
+## File Structure
+
+```
+.
+├── backend/
+│   ├── app/
+│   │   ├── controllers/
+│   │   │   ├── application_controller.rb (JWT auth + token type verification)
+│   │   │   └── api/v1/
+│   │   │       ├── auth_controller.rb (OAuth, refresh, sign_out, current_user)
+│   │   │       └── todos_controller.rb (CRUD + filtering)
+│   │   ├── models/
+│   │   │   ├── user.rb
+│   │   │   └── todo.rb
+│   │   ├── serializers/
+│   │   │   ├── user_serializer.rb
+│   │   │   └── todo_serializer.rb
+│   │   └── services/
+│   │       ├── jwt_service.rb
+│   │       └── google_oauth_service.rb
+│   ├── config/
+│   │   ├── routes.rb
+│   │   └── initializers/omniauth.rb
+│   ├── db/
+│   │   ├── migrate/
+│   │   └── schema.rb
+│   └── spec/ (74 tests)
+│
+├── frontend/
+│   └── src/
+│       ├── components/
+│       │   ├── auth/ (LoginPage, OAuthCallback)
+│       │   ├── todos/ (TodoList, TodoItem, TodoForm)
+│       │   └── common/ (Button, Checkbox, Modal)
+│       ├── hooks/
+│       │   └── useAuth.js
+│       ├── services/
+│       │   ├── api.js (Axios + interceptors)
+│       │   ├── authService.js (OAuth + token management)
+│       │   ├── tokenService.js
+│       │   └── todoService.js
+│       ├── constants/
+│       │   └── messages.js (Japanese UI text)
+│       └── App.jsx (routing + auth context)
+│
+└── docker-compose.yml
+```
+
+---
+
+## API Endpoints
+
+### Authentication
+- `GET /api/v1/auth/google` - Initiate Google OAuth
+- `GET /auth/google_oauth2/callback` - OAuth callback (redirects to frontend with #access_token)
+- `POST /api/v1/auth/refresh` - Refresh access token
+- `DELETE /api/v1/auth/sign_out` - Sign out (clear cookies)
+- `GET /api/v1/auth/current_user` - Get current user info
+
+### TODOs
+- `GET /api/v1/todos` - List all user's TODOs (sorted)
+- `GET /api/v1/todos?priority=high` - Filter by priority
+- `POST /api/v1/todos` - Create TODO
+- `PATCH /api/v1/todos/:id` - Update TODO
+- `DELETE /api/v1/todos/:id` - Delete TODO
+
+---
+
+## Running the Application
+
+### Prerequisites
+- Docker & Docker Compose
+- Google Cloud Platform OAuth2 credentials
+
+### Setup
+```bash
+# 1. Configure Google OAuth2 callback URL:
+#    http://localhost:3000/auth/google_oauth2/callback
+
+# 2. Set environment variables in backend/.env:
+#    GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, JWT_SECRET_KEY
+
+# 3. Build and start
+docker compose up --build
+
+# 4. Initialize database (first time only)
+docker compose exec backend rails db:create db:migrate
+
+# 5. Access the app
+#    Frontend: http://localhost:3001
+#    Backend: http://localhost:3000/api/v1
+```
+
+### Development Commands
+```bash
+# Run tests
+docker compose exec backend bundle exec rspec      # 74 tests
+docker compose exec frontend npm test -- --watchAll=false  # 55 tests
+
+# Run linters
+docker compose exec backend bundle exec rubocop -A
+docker compose exec frontend npm run lint:fix
+
+# Database operations
+docker compose exec backend rails db:migrate
+docker compose exec backend rails db:reset
+docker compose exec backend rails console
+```
+
+---
+
 ## References
 
 - **Specification**: `specs/001-todo-google-oauth2/spec.md`
 - **Implementation Plan**: `specs/001-todo-google-oauth2/plan.md`
 - **Data Model**: `specs/001-todo-google-oauth2/data-model.md`
-- **API Contracts**: `specs/001-todo-google-oauth2/contracts/openapi.yaml`
+- **API Contracts**: `specs/001-todo-google-oauth2/contracts/`
 - **Tasks List**: `specs/001-todo-google-oauth2/tasks.md`
-- **Quickstart Guide**: `specs/001-todo-google-oauth2/quickstart.md`
-- **Research Decisions**: `specs/001-todo-google-oauth2/research.md`
+- **Setup Guide**: `SETUP.md`
+- **README**: `README.md`
 
 ---
 
-## Command Reference
+## Known Issues & Resolutions
 
-```bash
-# Start all containers
-docker-compose up
+### ✅ Resolved Issues
 
-# Run Rails commands
-docker-compose exec backend rails console
-docker-compose exec backend rails db:migrate
-docker-compose exec backend bundle exec rspec
-
-# Run frontend commands
-docker-compose exec frontend npm test
-docker-compose exec frontend npm run lint
-
-# View logs
-docker-compose logs -f backend
-docker-compose logs -f frontend
-
-# Stop containers
-docker-compose down
-
-# Rebuild after dependency changes
-docker-compose up --build
-```
+1. **OAuth Token in Query Parameters** → Changed to URL fragment (#)
+2. **Refresh Token API Abuse** → Added token type verification
+3. **React Router Hash Handling** → Use `location.hash` instead of `window.location.hash`
+4. **Checkbox Prop Type Warnings** → Convert `completed` (0/1) to boolean
+5. **WebSocket Connection Errors** → Set `WDS_SOCKET_PORT=0` in dev environment
 
 ---
 
-## Current Blockers
+## Next Steps (Future Enhancements)
 
-1. **Docker daemon not running** - Cannot execute container commands
-2. **Rails/React apps not generated** - Required before implementing Phase 2+
-
-## Resolution
-
-1. Start Docker Desktop
-2. Follow SETUP.md instructions to generate applications
-3. Resume implementation from Phase 2: Foundational
+Potential improvements for future iterations:
+- [ ] TODO categories/tags
+- [ ] Search functionality
+- [ ] Recurring tasks
+- [ ] Bulk operations (multi-select)
+- [ ] Export/import (CSV, JSON)
+- [ ] Email notifications for overdue tasks
+- [ ] Dark mode
+- [ ] Mobile app (React Native)
+- [ ] Real-time sync (WebSocket)
+- [ ] Shared TODOs (collaboration)
 
 ---
 
-**Last Updated**: 2025-10-09
-**Implementation Progress**: Phase 1 setup files created, awaiting Docker initialization
+**🤖 Generated with [Claude Code](https://claude.com/claude-code)**
