@@ -6,6 +6,7 @@ Auto-generated from all feature plans. Last updated: 2025-10-10
 - **Backend**: Ruby 3.x, Rails 7.1 (001-todo-google-oauth2)
 - **Frontend**: JavaScript/ES6+, React 18.2 (001-todo-google-oauth2)
 - **CI/CD**: GitHub Actions, Docker Compose (003-pull-request-github)
+- **Autofix**: YAML (GitHub Actions workflow definitions) (004-github-actions-ci)
 
 ## Project Structure
 ```
@@ -63,8 +64,20 @@ docker compose exec backend rails db:reset
 - **Jobs**: 4 parallel jobs (backend-test, frontend-test, backend-lint, frontend-lint)
 - **Environment**: Docker Compose (matches local development)
 - **Auto-setup**: Environment files created from .env.example, DB migrations run automatically
+- **Autofix**: GitHub Actions autofix workflow automatically generates and commits fixes for test/lint failures
+
+## Autofix Workflow (004-github-actions-ci)
+- **When it triggers**: Automatically after CI completes with failures (not on main/master branches)
+- **What it fixes**: Test failures (RSpec, Jest) and linting errors (RuboCop, ESLint)
+- **How it works**: Uses OpenAI Codex to analyze failure logs and generate code fixes
+- **Commits**: Fixes committed directly to PR branch with `fix(autofix):` prefix
+- **Loop prevention**: Skips if last commit is already an autofix commit
+- **Partial fixes**: Creates commit even if not all failures resolved, documents remaining issues
+- **Manual review**: Always review autofix commits before merging - AI may not fix everything correctly
+- **Requirements**: OPENAI_API_KEY must be configured in repository secrets
 
 ## Recent Changes
+- 004-github-actions-ci: Added GitHub Actions CI Autofix Workflow (2025-10-10)
 - 003-pull-request-github: Added GitHub Actions CI/CD workflow (2025-10-10)
 - 002-japanese-ui: Implemented Japanese UI localization (2025-10-09)
 - 001-todo-google-oauth2: Added Google OAuth2 authentication (2025-10-09)
