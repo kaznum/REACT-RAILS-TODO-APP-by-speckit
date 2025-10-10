@@ -301,9 +301,10 @@ jobs:
             fi
 
             # Create commit message using heredoc
+            COMMIT_TITLE="${{ steps.commit-type.outputs.title }}"
             if [ -n "$REMAINING_SUMMARY" ]; then
-              git commit -m "$(cat <<'EOF'
-fix(autofix): ${{ steps.commit-type.outputs.title }}
+              git commit -m "$(cat <<EOF
+fix(autofix): ${COMMIT_TITLE}
 
 Fixed:
 ${FIXED_SUMMARY}
@@ -315,8 +316,8 @@ ${REMAINING_SUMMARY}
 EOF
 )"
             else
-              git commit -m "$(cat <<'EOF'
-fix(autofix): ${{ steps.commit-type.outputs.title }}
+              git commit -m "$(cat <<EOF
+fix(autofix): ${COMMIT_TITLE}
 
 Fixed:
 ${FIXED_SUMMARY}
