@@ -300,32 +300,25 @@ jobs:
               REMAINING_SUMMARY="${{ steps.codex-combined.outputs.remaining_summary }}"
             fi
 
-            # Create commit message using heredoc
+            # Create commit message
             COMMIT_TITLE="${{ steps.commit-type.outputs.title }}"
-            if [ -n "$REMAINING_SUMMARY" ]; then
-              git commit -m "$(cat <<EOF
-fix(autofix): ${COMMIT_TITLE}
+            COMMIT_MSG="fix(autofix): ${COMMIT_TITLE}
 
 Fixed:
-${FIXED_SUMMARY}
+${FIXED_SUMMARY}"
+
+            if [ -n "$REMAINING_SUMMARY" ]; then
+              COMMIT_MSG="${COMMIT_MSG}
 
 Remaining issues (manual review needed):
-${REMAINING_SUMMARY}
-
-🤖 Generated with GitHub Actions Autofix
-EOF
-)"
-            else
-              git commit -m "$(cat <<EOF
-fix(autofix): ${COMMIT_TITLE}
-
-Fixed:
-${FIXED_SUMMARY}
-
-🤖 Generated with GitHub Actions Autofix
-EOF
-)"
+${REMAINING_SUMMARY}"
             fi
+
+            COMMIT_MSG="${COMMIT_MSG}
+
+🤖 Generated with GitHub Actions Autofix"
+
+            git commit -m "$COMMIT_MSG"
 
             echo "committed=true" >> $GITHUB_OUTPUT
           fi
