@@ -80,7 +80,7 @@
   4. Run tests: `docker compose exec -T frontend npm test -- --watchAll=false`
   5. Cleanup (always run): `docker compose down -v`
 
-- [ ] T015 [US1] Test workflow by creating a test PR:
+- [x] T015 [US1] Test workflow by creating a test PR:
   - Create branch `test/ci-backend-test`
   - Make trivial change to trigger CI
   - Verify backend-test job runs and passes
@@ -88,7 +88,7 @@
   - Check status checks appear on PR page
   - Verify logs are accessible
 
-- [ ] T016 [US1] Test workflow with failing tests:
+- [x] T016 [US1] Test workflow with failing tests:
   - Create branch `test/ci-failing-test`
   - Introduce intentional test failure
   - Verify job status shows failure (red X)
@@ -133,14 +133,14 @@
   4. Run linter: `docker compose exec -T frontend npm run lint`
   5. Cleanup (always run): `docker compose down -v`
 
-- [ ] T021 [US2] Test linting workflow:
+- [x] T021 [US2] Test linting workflow:
   - Create branch `test/ci-lint-violation`
   - Introduce style violation (e.g., missing semicolon in JS, wrong indentation in Ruby)
   - Verify backend-lint and/or frontend-lint jobs fail
   - Verify lint error details in logs
   - Fix violations and verify jobs pass
 
-- [ ] T022 [US2] Verify all 4 jobs run in parallel:
+- [x] T022 [US2] Verify all 4 jobs run in parallel:
   - Create test PR
   - Check GitHub Actions UI shows all 4 jobs running simultaneously
   - Verify total workflow time ≈ slowest job time (not sum of all jobs)
@@ -160,7 +160,7 @@
 - [x] T023 [US3] Verify `synchronize` trigger is included in pull_request events in `.github/workflows/ci.yml`
   - Already added in T008 - double-check it's present
 
-- [ ] T024 [US3] Verify concurrency cancellation works:
+- [x] T024 [US3] Verify concurrency cancellation works:
   - Create test PR
   - Wait for CI to start
   - Push new commit immediately
