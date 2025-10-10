@@ -19,8 +19,24 @@ class Todo < ApplicationRecord
   scope :completed, -> { where(completed: 1) }
   scope :active, -> { where(completed: 0) }
 
+
+
+
+
+
+
+
+
+
+
+
+           
+
+
+
+
   # Instance methods
-  def completed?
+  def completed?                    
     completed == 1
   end
 
@@ -39,7 +55,7 @@ class Todo < ApplicationRecord
     return if deadline.blank?
 
     unless deadline.match?(/^\d{4}-\d{2}-\d{2}$/)
-      errors.add(:deadline, 'must be in YYYY-MM-DD format')
+      errors.add(:deadline, "must be in YYYY-MM-DD format")
       return
     end
 
@@ -50,3 +66,17 @@ class Todo < ApplicationRecord
     end
   end
 end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
