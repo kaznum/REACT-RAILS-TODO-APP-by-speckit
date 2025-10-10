@@ -1,9 +1,14 @@
 # Implementation Status: TODO Management Application
 
-**Feature**: 001-todo-google-oauth2
+**Primary Features**:
+- 001-todo-google-oauth2 (Google OAuth2 Authentication + TODO Management)
+- 002-japanese-ui (Japanese UI Localization)
+- 003-pull-request-github (GitHub Actions CI/CD Workflow)
+
 **Architecture**: React (frontend) + Rails API (backend) + SQLite (database)
 **Authentication**: Google OAuth2 → JWT (access + refresh tokens)
-**Status**: ✅ **COMPLETED** with security enhancements
+**CI/CD**: GitHub Actions with Docker Compose
+**Status**: ✅ **FULLY OPERATIONAL**
 **Last Updated**: 2025-10-10
 
 ---
@@ -12,10 +17,12 @@
 
 All user stories and features have been successfully implemented and tested.
 
-### Test Results
+### Test Results (Local & CI)
 - **Backend (RSpec)**: 74 tests, 0 failures ✅
 - **Frontend (Jest)**: 55 tests, 0 failures ✅
-- **Linters**: All passing (RuboCop, ESLint) ✅
+- **Backend Lint (RuboCop)**: 0 violations ✅
+- **Frontend Lint (ESLint)**: 0 violations ✅
+- **CI/CD**: All 4 jobs passing on every PR ✅
 
 ---
 
@@ -82,8 +89,16 @@ All user stories and features have been successfully implemented and tested.
 - Immediate removal from list
 - User authorization check (cannot delete others' TODOs)
 
-### Phase 4: UI/UX Polish ✅
-- Japanese UI throughout
+### Phase 4: UI/UX Polish (002-japanese-ui) ✅
+- **Japanese UI Localization**: All UI elements and messages in Japanese
+  - Authentication pages (Googleでログイン, ログアウト)
+  - Dashboard and navigation (マイTODO, TODO追加)
+  - Forms and labels (TODO名, 優先度, 期限)
+  - Priority levels (高/中/低)
+  - Validation messages in Japanese
+  - Error and success messages in Japanese
+  - Empty state messages in Japanese
+  - Date format: Japanese style (YYYY年MM月DD日)
 - Responsive design
 - Loading states
 - Error handling with user-friendly messages
@@ -97,6 +112,43 @@ All user stories and features have been successfully implemented and tested.
 - Removed WebSocket connection errors (dev server polling mode)
 - Fixed OAuth callback hash handling with React Router
 - Cleaned up development environment configuration
+
+### Phase 6: CI/CD Automation (User Story 1-4) ✅
+
+#### Automated Testing on PR Creation (User Story 1)
+- GitHub Actions workflow triggers on pull_request events
+- Parallel execution of backend and frontend tests
+- RSpec tests (74 tests) run in backend-test job
+- Jest tests (55 tests) run in frontend-test job
+- Test results reported as PR status checks
+- Pass/fail indicators displayed on PR page
+
+#### Automated Linting on PR Creation (User Story 2)
+- RuboCop linter runs on backend code
+- ESLint runs on frontend code
+- Lint results reported as separate status checks
+- Violations block PR merge when required
+
+#### Automated Testing on PR Updates (User Story 3)
+- Workflow re-triggers on new commits (synchronize event)
+- Concurrency control cancels outdated runs
+- Fresh test results replace previous ones
+- Status changes reflect new commit results
+
+#### CI Status Visibility (User Story 4)
+- All 4 checks visible on PR page (backend-test, frontend-test, backend-lint, frontend-lint)
+- Clear pass/fail indicators with green checkmarks or red X
+- Detailed logs accessible via GitHub Actions UI
+- "All checks have passed" summary when successful
+
+**CI/CD Implementation Details**:
+- **Workflow File**: `.github/workflows/ci.yml`
+- **Parallel Jobs**: 4 jobs run simultaneously (~5 minutes total)
+- **Docker Compose Integration**: Uses existing docker-compose.yml for environment parity
+- **Auto-Setup**: Environment files (.env) generated from .env.example
+- **Database Migration**: Automatic db:create and db:migrate in CI
+- **Caching**: Docker layers and dependencies cached for speed
+- **Branch Protection**: CI checks required to pass before merge
 
 ---
 
@@ -159,6 +211,10 @@ All user stories and features have been successfully implemented and tested.
 
 ```
 .
+├── .github/
+│   └── workflows/
+│       └── ci.yml (GitHub Actions CI/CD workflow)
+│
 ├── backend/
 │   ├── app/
 │   │   ├── controllers/
@@ -199,6 +255,11 @@ All user stories and features have been successfully implemented and tested.
 │       ├── constants/
 │       │   └── messages.js (Japanese UI text)
 │       └── App.jsx (routing + auth context)
+│
+├── specs/
+│   ├── 001-todo-google-oauth2/ (Google OAuth2 + TODO management specs)
+│   ├── 002-japanese-ui/ (Japanese UI localization specs)
+│   └── 003-pull-request-github/ (CI/CD workflow specs)
 │
 └── docker-compose.yml
 ```
@@ -268,13 +329,29 @@ docker compose exec backend rails console
 
 ## References
 
+### Feature 001: Google OAuth2 + TODO Management
 - **Specification**: `specs/001-todo-google-oauth2/spec.md`
 - **Implementation Plan**: `specs/001-todo-google-oauth2/plan.md`
 - **Data Model**: `specs/001-todo-google-oauth2/data-model.md`
 - **API Contracts**: `specs/001-todo-google-oauth2/contracts/`
 - **Tasks List**: `specs/001-todo-google-oauth2/tasks.md`
+
+### Feature 002: Japanese UI Localization
+- **Specification**: `specs/002-japanese-ui/spec.md`
+- **Implementation Plan**: `specs/002-japanese-ui/plan.md`
+- **Tasks List**: `specs/002-japanese-ui/tasks.md`
+
+### Feature 003: GitHub Actions CI/CD
+- **Specification**: `specs/003-pull-request-github/spec.md`
+- **Research**: `specs/003-pull-request-github/research.md`
+- **Implementation Plan**: `specs/003-pull-request-github/plan.md`
+- **Quickstart Guide**: `specs/003-pull-request-github/quickstart.md`
+- **Tasks List**: `specs/003-pull-request-github/tasks.md`
+
+### General Documentation
 - **Setup Guide**: `SETUP.md`
 - **README**: `README.md`
+- **Development Guidelines**: `CLAUDE.md`
 
 ---
 

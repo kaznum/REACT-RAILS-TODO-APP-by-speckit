@@ -14,7 +14,6 @@ services:
     volumes:
       - ./backend:/app
       - backend_bundle:/usr/local/bundle  # Cache gems
-      - sqlite_data:/app/db  # Persistent SQLite database
     ports:
       - "3000:3000"
     env_file:
@@ -54,5 +53,4 @@ networks:
     driver: bridge
 
 volumes:
-  sqlite_data:  # Named volume for SQLite database file persistence
   backend_bundle:  # Cache for Ruby gems

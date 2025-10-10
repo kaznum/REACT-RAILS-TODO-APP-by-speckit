@@ -33,7 +33,7 @@ Google OAuth2認証を使用したReact + RailsのTODO管理アプリケーシ�
 
 ### インフラ
 - Docker & Docker Compose
-- Nginx (リバースプロキシ)
+- GitHub Actions (CI/CD)
 
 ## 前提条件
 
@@ -90,6 +90,27 @@ docker-compose exec backend rails db:create db:migrate
 - Frontend: http://localhost:3001
 - Backend API: http://localhost:3000/api/v1
 
+## CI/CD
+
+このプロジェクトはGitHub Actionsを使用して自動テストとLintを実行します。
+
+### 自動実行
+- **プルリクエスト作成時**: 全てのテストとLintが自動実行
+- **プルリクエスト更新時**: 新しいコミットがプッシュされると自動的に再実行
+- **並列実行**: 4つのジョブが並列実行（約5分で完了）
+  - Backend Tests (RSpec) - 74 tests
+  - Frontend Tests (Jest) - 55 tests
+  - Backend Lint (RuboCop)
+  - Frontend Lint (ESLint)
+
+### ワークフロー
+- 設定ファイル: `.github/workflows/ci.yml`
+- Docker Composeを使用してローカル環境と同じ環境でテスト実行
+- 環境ファイル（`.env`）は`.env.example`から自動生成
+- データベースマイグレーションも自動実行
+
+詳細は [specs/003-pull-request-github/quickstart.md](specs/003-pull-request-github/quickstart.md) を参照してください。
+
 ## 開発
 
 ### テストの実行
@@ -135,7 +156,11 @@ docker compose exec backend rails console
 
 ```
 .
-├── backend/                 # Rails API
+├── .github/
+│   └── workflows/
+│       └── ci.yml          # GitHub Actions CI/CD設定
+│
+├── backend/                # Rails API
 │   ├── app/
 │   │   ├── controllers/    # APIコントローラー
 │   │   ├── models/         # データモデル
@@ -146,14 +171,19 @@ docker compose exec backend rails console
 │   └── spec/               # RSpecテスト
 │
 ├── frontend/               # React SPA
-│   ├── public/            # 静的ファイル
+│   ├── public/             # 静的ファイル
 │   └── src/
-│       ├── components/    # Reactコンポーネント
-│       ├── hooks/         # カスタムフック
-│       ├── services/      # API通信
-│       └── constants/     # 定数
+│       ├── components/     # Reactコンポーネント
+│       ├── hooks/          # カスタムフック
+│       ├── services/       # API通信
+│       └── constants/      # 定数
 │
-└── docker-compose.yml     # Docker構成
+├── specs/                  # 機能仕様とドキュメント
+│   ├── 001-todo-google-oauth2/  # Google OAuth2機能
+│   ├── 002-japanese-ui/         # 日本語UI機能
+│   └── 003-pull-request-github/ # CI/CD機能
+│
+└── docker-compose.yml      # Docker構成
 ```
 
 ## API エンドポイント
