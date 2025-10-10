@@ -255,13 +255,13 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
       - name: Configure git
-        if: steps.codex-test.outcome == 'success' || steps.codex-lint.outcome == 'success' || steps.codex-combined.outcome == 'success'
+        if: steps.codex-test.conclusion == 'success' || steps.codex-lint.conclusion == 'success' || steps.codex-combined.conclusion == 'success'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Determine commit message type
-        if: steps.codex-test.outcome == 'success' || steps.codex-lint.outcome == 'success' || steps.codex-combined.outcome == 'success'
+        if: steps.codex-test.conclusion == 'success' || steps.codex-lint.conclusion == 'success' || steps.codex-combined.conclusion == 'success'
         id: commit-type
         run: |
           if [ "${{ steps.categorize.outputs.has_test_failures }}" == "true" ] && [ "${{ steps.categorize.outputs.has_lint_failures }}" == "false" ]; then
@@ -276,7 +276,7 @@ jobs:
           fi
 
       - name: Commit fixes
-        if: steps.codex-test.outcome == 'success' || steps.codex-lint.outcome == 'success' || steps.codex-combined.outcome == 'success'
+        if: steps.codex-test.conclusion == 'success' || steps.codex-lint.conclusion == 'success' || steps.codex-combined.conclusion == 'success'
         id: commit
         run: |
           git add .
@@ -331,7 +331,7 @@ jobs:
           git push origin HEAD
 
       - name: Handle Codex failure
-        if: steps.codex-test.outcome == 'failure' || steps.codex-lint.outcome == 'failure' || steps.codex-combined.outcome == 'failure'
+        if: steps.codex-test.conclusion == 'failure' || steps.codex-lint.conclusion == 'failure' || steps.codex-combined.conclusion == 'failure'
         run: |
           echo "::warning::Autofix generation failed. This may be due to:"
           echo "  - OpenAI API rate limits"
