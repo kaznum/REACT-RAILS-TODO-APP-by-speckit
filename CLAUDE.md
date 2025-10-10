@@ -1,24 +1,71 @@
 # REACT-RAILS-TODO-APP-by-speckit Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2025-10-09
+Auto-generated from all feature plans. Last updated: 2025-10-10
 
 ## Active Technologies
-- Ruby 3.x (backend), JavaScript/ES6+ (frontend) (001-todo-google-oauth2)
+- **Backend**: Ruby 3.x, Rails 7.1 (001-todo-google-oauth2)
+- **Frontend**: JavaScript/ES6+, React 18.2 (001-todo-google-oauth2)
+- **CI/CD**: GitHub Actions, Docker Compose (003-pull-request-github)
 
 ## Project Structure
 ```
-src/
-tests/
+.
+├── .github/workflows/      # CI/CD configuration
+├── backend/                # Rails API (Ruby 3.x, Rails 7.1)
+│   ├── app/               # Application code
+│   ├── spec/              # RSpec tests (74 tests)
+│   └── db/                # Database files (SQLite)
+├── frontend/              # React SPA (React 18.2)
+│   └── src/              # Source code (Jest tests: 55 tests)
+├── specs/                 # Feature specifications
+│   ├── 001-todo-google-oauth2/
+│   └── 003-pull-request-github/
+└── docker-compose.yml     # Docker configuration
 ```
 
 ## Commands
-npm test [ONLY COMMANDS FOR ACTIVE TECHNOLOGIES][ONLY COMMANDS FOR ACTIVE TECHNOLOGIES] npm run lint
+
+### Testing
+```bash
+# Backend (RSpec)
+docker compose exec backend bundle exec rspec
+
+# Frontend (Jest)
+docker compose exec frontend npm test -- --watchAll=false
+```
+
+### Linting
+```bash
+# Backend (RuboCop)
+docker compose exec backend bundle exec rubocop
+docker compose exec backend bundle exec rubocop -a  # Auto-fix
+
+# Frontend (ESLint)
+docker compose exec frontend npm run lint
+docker compose exec frontend npm run lint:fix  # Auto-fix
+```
+
+### Database
+```bash
+docker compose exec backend rails db:create
+docker compose exec backend rails db:migrate
+docker compose exec backend rails db:reset
+```
 
 ## Code Style
-Ruby 3.x (backend), JavaScript/ES6+ (frontend): Follow standard conventions
+- **Ruby**: Follow RuboCop standards, use Rails logger instead of puts
+- **JavaScript/React**: Follow ESLint standards, functional components with hooks
+- **Git Commits**: Conventional Commits format (feat:, fix:, docs:, etc.)
+
+## CI/CD
+- **Trigger**: On pull request (opened, synchronize, reopened)
+- **Jobs**: 4 parallel jobs (backend-test, frontend-test, backend-lint, frontend-lint)
+- **Environment**: Docker Compose (matches local development)
+- **Auto-setup**: Environment files created from .env.example, DB migrations run automatically
 
 ## Recent Changes
-- 001-todo-google-oauth2: Added Ruby 3.x (backend), JavaScript/ES6+ (frontend)
+- 003-pull-request-github: Added GitHub Actions CI/CD workflow (2025-10-10)
+- 001-todo-google-oauth2: Added Google OAuth2 authentication (2025-10-09)
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->
