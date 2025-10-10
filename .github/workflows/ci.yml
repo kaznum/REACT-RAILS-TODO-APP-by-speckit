@@ -28,6 +28,11 @@ jobs:
       - name: Build and start services
         run: docker compose up -d backend
 
+      - name: Setup database
+        run: |
+          docker compose exec -T backend bundle exec rails db:create RAILS_ENV=test
+          docker compose exec -T backend bundle exec rails db:migrate RAILS_ENV=test
+
       - name: Run backend tests
         run: docker compose exec -T backend bundle exec rspec
 
@@ -79,6 +84,11 @@ jobs:
 
       - name: Build and start services
         run: docker compose up -d backend
+
+      - name: Setup database
+        run: |
+          docker compose exec -T backend bundle exec rails db:create RAILS_ENV=test
+          docker compose exec -T backend bundle exec rails db:migrate RAILS_ENV=test
 
       - name: Run backend linting
         run: docker compose exec -T backend bundle exec rubocop
