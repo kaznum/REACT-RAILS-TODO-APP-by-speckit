@@ -302,23 +302,25 @@ jobs:
 
             # Create commit message
             COMMIT_TITLE="${{ steps.commit-type.outputs.title }}"
-            COMMIT_MSG="fix(autofix): ${COMMIT_TITLE}
-
-Fixed:
-${FIXED_SUMMARY}"
 
             if [ -n "$REMAINING_SUMMARY" ]; then
-              COMMIT_MSG="${COMMIT_MSG}
-
-Remaining issues (manual review needed):
-${REMAINING_SUMMARY}"
+              git commit -m "fix(autofix): ${COMMIT_TITLE}" \
+                         -m "" \
+                         -m "Fixed:" \
+                         -m "${FIXED_SUMMARY}" \
+                         -m "" \
+                         -m "Remaining issues (manual review needed):" \
+                         -m "${REMAINING_SUMMARY}" \
+                         -m "" \
+                         -m "🤖 Generated with GitHub Actions Autofix"
+            else
+              git commit -m "fix(autofix): ${COMMIT_TITLE}" \
+                         -m "" \
+                         -m "Fixed:" \
+                         -m "${FIXED_SUMMARY}" \
+                         -m "" \
+                         -m "🤖 Generated with GitHub Actions Autofix"
             fi
-
-            COMMIT_MSG="${COMMIT_MSG}
-
-🤖 Generated with GitHub Actions Autofix"
-
-            git commit -m "$COMMIT_MSG"
 
             echo "committed=true" >> $GITHUB_OUTPUT
           fi
