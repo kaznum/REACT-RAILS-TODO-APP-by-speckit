@@ -6,8 +6,7 @@ Auto-generated from all feature plans. Last updated: 2025-10-10
 - **Backend**: Ruby 3.x, Rails 7.1 (001-todo-google-oauth2)
 - **Frontend**: JavaScript/ES6+, React 18.2 (001-todo-google-oauth2)
 - **CI/CD**: GitHub Actions, Docker Compose (003-pull-request-github)
-- YAML (GitHub Actions workflow definitions) (004-github-actions-ci)
-- N/A (workflow definitions, no persistent storage) (004-github-actions-ci)
+- **Autofix**: YAML (GitHub Actions workflow definitions) (004-github-actions-ci)
 
 ## Project Structure
 ```
@@ -78,9 +77,10 @@ docker compose exec backend rails db:reset
 - **Requirements**: OPENAI_API_KEY must be configured in repository secrets
 
 ## Recent Changes
-- 004-github-actions-ci: Added YAML (GitHub Actions workflow definitions)
+- 004-github-actions-ci: Added GitHub Actions CI Autofix Workflow (2025-10-10)
 - 003-pull-request-github: Added GitHub Actions CI/CD workflow (2025-10-10)
 - 002-japanese-ui: Implemented Japanese UI localization (2025-10-09)
+- 001-todo-google-oauth2: Added Google OAuth2 authentication (2025-10-09)
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->
