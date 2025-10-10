@@ -2,6 +2,7 @@
 
 **Primary Features**:
 - 001-todo-google-oauth2 (Google OAuth2 Authentication + TODO Management)
+- 002-japanese-ui (Japanese UI Localization)
 - 003-pull-request-github (GitHub Actions CI/CD Workflow)
 
 **Architecture**: React (frontend) + Rails API (backend) + SQLite (database)
@@ -88,8 +89,16 @@ All user stories and features have been successfully implemented and tested.
 - Immediate removal from list
 - User authorization check (cannot delete others' TODOs)
 
-### Phase 4: UI/UX Polish ✅
-- Japanese UI throughout
+### Phase 4: UI/UX Polish (002-japanese-ui) ✅
+- **Japanese UI Localization**: All UI elements and messages in Japanese
+  - Authentication pages (Googleでログイン, ログアウト)
+  - Dashboard and navigation (マイTODO, TODO追加)
+  - Forms and labels (TODO名, 優先度, 期限)
+  - Priority levels (高/中/低)
+  - Validation messages in Japanese
+  - Error and success messages in Japanese
+  - Empty state messages in Japanese
+  - Date format: Japanese style (YYYY年MM月DD日)
 - Responsive design
 - Loading states
 - Error handling with user-friendly messages
@@ -249,6 +258,7 @@ All user stories and features have been successfully implemented and tested.
 │
 ├── specs/
 │   ├── 001-todo-google-oauth2/ (Google OAuth2 + TODO management specs)
+│   ├── 002-japanese-ui/ (Japanese UI localization specs)
 │   └── 003-pull-request-github/ (CI/CD workflow specs)
 │
 └── docker-compose.yml
@@ -325,6 +335,11 @@ docker compose exec backend rails console
 - **Data Model**: `specs/001-todo-google-oauth2/data-model.md`
 - **API Contracts**: `specs/001-todo-google-oauth2/contracts/`
 - **Tasks List**: `specs/001-todo-google-oauth2/tasks.md`
+
+### Feature 002: Japanese UI Localization
+- **Specification**: `specs/002-japanese-ui/spec.md`
+- **Implementation Plan**: `specs/002-japanese-ui/plan.md`
+- **Tasks List**: `specs/002-japanese-ui/tasks.md`
 
 ### Feature 003: GitHub Actions CI/CD
 - **Specification**: `specs/003-pull-request-github/spec.md`

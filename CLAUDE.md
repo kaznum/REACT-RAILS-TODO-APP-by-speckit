@@ -19,6 +19,7 @@ Auto-generated from all feature plans. Last updated: 2025-10-10
 │   └── src/              # Source code (Jest tests: 55 tests)
 ├── specs/                 # Feature specifications
 │   ├── 001-todo-google-oauth2/
+│   ├── 002-japanese-ui/
 │   └── 003-pull-request-github/
 └── docker-compose.yml     # Docker configuration
 ```
@@ -65,6 +66,7 @@ docker compose exec backend rails db:reset
 
 ## Recent Changes
 - 003-pull-request-github: Added GitHub Actions CI/CD workflow (2025-10-10)
+- 002-japanese-ui: Implemented Japanese UI localization (2025-10-09)
 - 001-todo-google-oauth2: Added Google OAuth2 authentication (2025-10-09)
 
 <!-- MANUAL ADDITIONS START -->

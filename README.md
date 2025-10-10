@@ -180,6 +180,7 @@ docker compose exec backend rails console
 │
 ├── specs/                  # 機能仕様とドキュメント
 │   ├── 001-todo-google-oauth2/  # Google OAuth2機能
+│   ├── 002-japanese-ui/         # 日本語UI機能
 │   └── 003-pull-request-github/ # CI/CD機能
 │
 └── docker-compose.yml      # Docker構成
