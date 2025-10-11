@@ -136,11 +136,24 @@ jobs:
                     job_id: jobId
                   });
 
-                  failureLogs += `\n\n=== Job: ${jobName} (ID: ${jobId}) ===\n${logResponse.data}\n`;
+                  // Extract only error lines to reduce size (last 200 lines with failures)
+                  const lines = logResponse.data.split('\n');
+                  const errorLines = lines.filter(line =>
+                    line.includes('Error') ||
+                    line.includes('Failure') ||
+                    line.includes('expected') ||
+                    line.includes('FAILED') ||
+                    line.includes('✗') ||
+                    line.includes('error:') ||
+                    line.includes('Expected:') ||
+                    line.includes('Received:')
+                  ).slice(-200).join('\n');
+
+                  failureLogs += `\n\n=== Job: ${jobName} ===\n${errorLines}\n`;
 
                   // Separate test and lint logs
                   if (jobName.includes('Test')) {
-                    testJobLogs += `\n\n=== Job: ${jobName} (ID: ${jobId}) ===\n${logResponse.data}\n`;
+                    testJobLogs += `\n\n=== Job: ${jobName} ===\n${errorLines}\n`;
                   }
                 } catch (error) {
                   core.warning(`Failed to download logs for job ${jobId}: ${error.message}`);
