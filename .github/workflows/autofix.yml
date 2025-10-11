@@ -174,7 +174,7 @@ jobs:
         if: steps.categorize.outputs.has_test_failures == 'true' && steps.categorize.outputs.has_lint_failures == 'true'
         id: codex-combined
         continue-on-error: true
-        uses: openai/codex-action@main
+        uses: openai/codex-action@v1
         with:
           prompt: |
             You are a code fix automation system. Analyze the following CI failures (tests + linting) and generate fixes.
@@ -206,7 +206,7 @@ jobs:
         if: steps.categorize.outputs.has_lint_failures == 'true' && steps.categorize.outputs.has_test_failures == 'false'
         id: codex-lint
         continue-on-error: true
-        uses: openai/codex-action@main
+        uses: openai/codex-action@v1
         with:
           prompt: |
             You are a code fix automation system. Analyze the following linting error logs and generate formatting fixes.
@@ -232,7 +232,7 @@ jobs:
         if: steps.categorize.outputs.has_test_failures == 'true' && steps.categorize.outputs.has_lint_failures == 'false'
         id: codex-test
         continue-on-error: true
-        uses: openai/codex-action@main
+        uses: openai/codex-action@v1
         with:
           prompt: |
             You are a code fix automation system. Analyze the following test failure logs and generate fixes.
