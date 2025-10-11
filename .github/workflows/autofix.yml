@@ -176,6 +176,8 @@ jobs:
         continue-on-error: true
         uses: openai/codex-action@v1
         with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          sandbox: workspace-write
           prompt: |
             You are a code fix automation system. Analyze the following CI failures (tests + linting) and generate fixes.
 
@@ -199,8 +201,6 @@ jobs:
             REMAINING (if any):
             - Tests: <unfixed test issues>
             - Linting: <unfixed linting issues>
-        env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
       - name: Generate lint fixes
         if: steps.categorize.outputs.has_lint_failures == 'true' && steps.categorize.outputs.has_test_failures == 'false'
@@ -208,6 +208,8 @@ jobs:
         continue-on-error: true
         uses: openai/codex-action@v1
         with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          sandbox: workspace-write
           prompt: |
             You are a code fix automation system. Analyze the following linting error logs and generate formatting fixes.
 
@@ -225,8 +227,6 @@ jobs:
 
             REMAINING (if any):
             - List issues that could not be fixed and why
-        env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
       - name: Generate test fixes
         if: steps.categorize.outputs.has_test_failures == 'true' && steps.categorize.outputs.has_lint_failures == 'false'
@@ -234,6 +234,8 @@ jobs:
         continue-on-error: true
         uses: openai/codex-action@v1
         with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          sandbox: workspace-write
           prompt: |
             You are a code fix automation system. Analyze the following test failure logs and generate fixes.
 
@@ -251,8 +253,6 @@ jobs:
 
             REMAINING (if any):
             - List issues that could not be fixed and why
-        env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
       - name: Configure git
         if: steps.codex-test.conclusion == 'success' || steps.codex-lint.conclusion == 'success' || steps.codex-combined.conclusion == 'success'
