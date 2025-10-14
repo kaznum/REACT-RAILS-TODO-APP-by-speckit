@@ -19,7 +19,8 @@ if defined?(ActiveRecord::InternalMetadata)
     connection = ActiveRecord::Base.connection
     metadata = ActiveRecord::InternalMetadata
 
-    if connection.data_source_exists?(metadata.table_name)
+    if connection.respond_to?(:data_source_exists?) &&
+       connection.data_source_exists?(metadata.table_name)
       stored_env = metadata[:environment]
       metadata[:environment] = Rails.env if stored_env != Rails.env
     end
