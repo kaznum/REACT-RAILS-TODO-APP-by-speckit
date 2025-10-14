@@ -1,70 +1,353 @@
-name: Codex Auto-Fix on Failure
- 
+# GitHub Actions CI Autofix Workflow
+#
+# This workflow automatically detects test failures and linting errors from CI runs,
+# uses OpenAI Codex to generate fixes, and commits corrections directly to the PR branch.
+#
+# Trigger Conditions:
+# - Runs after CI workflow completes with failures
+# - Only triggers on pull request branches (not main/master)
+# - Skips if last commit is already an autofix commit (loop prevention)
+#
+# Requirements:
+# - OPENAI_API_KEY must be configured in repository secrets
+# - Workflow permissions must be set to "Read and write"
+# - Branch write permissions must be enabled for automated commits
+
+name: CI Autofix
+
 on:
   workflow_run:
-    # Trigger this job after any run of the primary CI workflow completes
     workflows: ["CI"]
     types: [completed]
- 
+
+concurrency:
+  group: autofix-${{ github.event.workflow_run.pull_requests[0].number }}
+  cancel-in-progress: true
+
 permissions:
   contents: write
-  pull-requests: write
- 
-jobs:
-  auto-fix:
-    # Only run when the referenced workflow concluded with a failure
-    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
-    runs-on: ubuntu-latest
-    env:
-      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-      FAILED_WORKFLOW_NAME: ${{ github.event.workflow_run.name }}
-      FAILED_RUN_URL: ${{ github.event.workflow_run.html_url }}
-      FAILED_HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
-      FAILED_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
-    steps:
-      - name: Check OpenAI API Key Set
-        run: |
-          if [ -z "$OPENAI_API_KEY" ]; then
-            echo "OPENAI_API_KEY secret is not set. Skipping auto-fix." >&2
-            exit 1
-          fi
-      - name: Checkout Failing Ref
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ env.FAILED_HEAD_SHA }}
-          fetch-depth: 0
- 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
- 
-      - name: Install dependencies
-        run: |
-          if [ -f package-lock.json ]; then npm ci; else npm i; fi
-      - name: Run Codex
-        uses: openai/codex-action@main
-        id: codex
-        with:
-          openai_api_key: ${{ secrets.OPENAI_API_KEY }}
-          prompt: "You are working in a Node.js monorepo with Jest tests and GitHub Actions. Read the repository, run the test suite, identify the minimal change needed to make all tests pass, implement only that change, and stop. Do not refactor unrelated code or files. Keep changes small and surgical."
-          codex_args: '["--config","sandbox_mode=\"workspace-write\""]'
- 
-      - name: Verify tests
-        run: npm test --silent
- 
-      - name: Create pull request with fixes
-        if: success()
-        uses: peter-evans/create-pull-request@v6
-        with:
-          commit-message: "fix(ci): auto-fix failing tests via Codex"
-          branch: codex/auto-fix-${{ github.event.workflow_run.run_id }}
-          base: ${{ env.FAILED_HEAD_BRANCH }}
-          title: "Auto-fix failing CI via Codex"
-          body: |
-            Codex automatically generated this PR in response to a CI failure on workflow `${{ env.FAILED_WORKFLOW_NAME }}`.
-            Failed run: ${{ env.FAILED_RUN_URL }}
-            Head branch: `${{ env.FAILED_HEAD_BRANCH }}`
-            This PR contains minimal changes intended solely to make the CI pass.
+  actions: read
+  pull-requests: read
 
+jobs:
+  autofix:
+    name: Generate and apply fixes
+    runs-on: ubuntu-latest
+
+    # Only run if CI workflow failed and not on main/master branches
+    if: |
+      github.event.workflow_run.conclusion == 'failure' &&
+      github.event.workflow_run.head_branch != 'main' &&
+      github.event.workflow_run.head_branch != 'master' &&
+      github.event.workflow_run.head_branch != '001-todo-google-oauth2'
+
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.workflow_run.head_branch }}
+          fetch-depth: 2
+
+      - name: Check if last commit is autofix
+        id: check-autofix
+        run: |
+          LAST_COMMIT_MSG=$(git log -1 --pretty=%B)
+          if [[ "$LAST_COMMIT_MSG" == fix\(autofix\):* ]]; then
+            echo "is_autofix=true" >> $GITHUB_OUTPUT
+            echo "::notice::Skipping autofix - last commit is already an autofix commit"
+          else
+            echo "is_autofix=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Skip if autofix commit
+        if: steps.check-autofix.outputs.is_autofix == 'true'
+        run: |
+          echo "Loop prevention: Last commit is an autofix commit. Exiting gracefully."
+          exit 0
+
+      - name: Get CI workflow run details
+        if: steps.check-autofix.outputs.is_autofix == 'false'
+        id: ci-run
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const run = await github.rest.actions.getWorkflowRun({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: context.payload.workflow_run.id
+            });
+            core.setOutput('run_id', run.data.id);
+            core.setOutput('conclusion', run.data.conclusion);
+            core.setOutput('pr_number', context.payload.workflow_run.pull_requests[0].number);
+
+      - name: Check CI conclusion
+        if: steps.check-autofix.outputs.is_autofix == 'false'
+        id: check-conclusion
+        run: |
+          if [ "${{ steps.ci-run.outputs.conclusion }}" != "failure" ]; then
+            echo "::notice::CI workflow did not fail (conclusion: ${{ steps.ci-run.outputs.conclusion }}). Exiting gracefully."
+            echo "should_continue=false" >> $GITHUB_OUTPUT
+          else
+            echo "should_continue=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: List failed jobs
+        if: steps.check-autofix.outputs.is_autofix == 'false' && steps.check-conclusion.outputs.should_continue == 'true'
+        id: list-jobs
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const jobs = await github.rest.actions.listJobsForWorkflowRun({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: context.payload.workflow_run.id,
+              filter: 'latest'
+            });
+
+            const failedJobs = jobs.data.jobs.filter(job => job.conclusion === 'failure');
+            core.setOutput('failed_count', failedJobs.length);
+            core.setOutput('failed_job_ids', JSON.stringify(failedJobs.map(j => j.id)));
+            core.setOutput('failed_job_names', JSON.stringify(failedJobs.map(j => j.name)));
+
+            return failedJobs.length;
+
+      - name: Download failure logs
+        if: steps.check-autofix.outputs.is_autofix == 'false' && steps.check-conclusion.outputs.should_continue == 'true'
+        id: download-logs
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const failedJobIds = JSON.parse('${{ steps.list-jobs.outputs.failed_job_ids }}');
+            const failedJobNames = JSON.parse('${{ steps.list-jobs.outputs.failed_job_names }}');
+
+            let failureLogs = '';
+            let testJobLogs = '';
+
+            for (let i = 0; i < failedJobIds.length; i++) {
+              const jobId = failedJobIds[i];
+              const jobName = failedJobNames[i];
+
+              // Download logs for both test and lint jobs (User Story 1 + 2)
+              if (jobName.includes('Test') || jobName.includes('Lint')) {
+                try {
+                  const logResponse = await github.rest.actions.downloadJobLogsForWorkflowRun({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    job_id: jobId
+                  });
+
+                  // Extract only error lines to reduce size (last 200 lines with failures)
+                  const lines = logResponse.data.split('\n');
+                  const errorLines = lines.filter(line =>
+                    line.includes('Error') ||
+                    line.includes('Failure') ||
+                    line.includes('expected') ||
+                    line.includes('FAILED') ||
+                    line.includes('✗') ||
+                    line.includes('error:') ||
+                    line.includes('Expected:') ||
+                    line.includes('Received:')
+                  ).slice(-200).join('\n');
+
+                  failureLogs += `\n\n=== Job: ${jobName} ===\n${errorLines}\n`;
+
+                  // Separate test and lint logs
+                  if (jobName.includes('Test')) {
+                    testJobLogs += `\n\n=== Job: ${jobName} ===\n${errorLines}\n`;
+                  }
+                } catch (error) {
+                  core.warning(`Failed to download logs for job ${jobId}: ${error.message}`);
+                }
+              }
+            }
+
+            core.setOutput('failure_logs', failureLogs);
+            core.setOutput('test_logs', testJobLogs);
+            core.setOutput('has_failures', failureLogs.length > 0);
+
+            return testJobLogs.length;
+
+      - name: Categorize failures
+        if: steps.check-autofix.outputs.is_autofix == 'false' && steps.download-logs.outputs.has_failures == 'true'
+        id: categorize
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const failedJobNames = JSON.parse('${{ steps.list-jobs.outputs.failed_job_names }}');
+
+            const hasTestFailures = failedJobNames.some(name => name.includes('Test'));
+            const hasLintFailures = failedJobNames.some(name => name.includes('Lint'));
+
+            core.setOutput('has_test_failures', hasTestFailures);
+            core.setOutput('has_lint_failures', hasLintFailures);
+
+            return { hasTestFailures, hasLintFailures };
+
+      - name: Generate combined fixes (tests + linting)
+        if: steps.categorize.outputs.has_test_failures == 'true' && steps.categorize.outputs.has_lint_failures == 'true'
+        id: codex-combined
+        continue-on-error: true
+        uses: openai/codex-action@v1
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          sandbox: workspace-write
+          prompt: |
+            You are a code fix automation system. Analyze the following CI failures (tests + linting) and generate fixes.
+
+            CI Failure Logs:
+            ${{ steps.download-logs.outputs.failure_logs }}
+
+            Instructions:
+            1. Identify all failure types:
+               - Test failures (RSpec for backend, Jest for frontend)
+               - Linting errors (RuboCop for backend Ruby, ESLint for frontend JavaScript)
+            2. Generate code fixes for both categories
+            3. If you cannot fix all failures, fix what you can and list remaining issues by category
+
+            Output format:
+            TESTS FIXED:
+            - List test-related fixes
+
+            LINTING FIXED:
+            - List linting-related fixes
+
+            REMAINING (if any):
+            - Tests: <unfixed test issues>
+            - Linting: <unfixed linting issues>
+
+      - name: Generate lint fixes
+        if: steps.categorize.outputs.has_lint_failures == 'true' && steps.categorize.outputs.has_test_failures == 'false'
+        id: codex-lint
+        continue-on-error: true
+        uses: openai/codex-action@v1
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          sandbox: workspace-write
+          prompt: |
+            You are a code fix automation system. Analyze the following linting error logs and generate formatting fixes.
+
+            Linting Error Logs:
+            ${{ steps.download-logs.outputs.failure_logs }}
+
+            Instructions:
+            1. Identify linting errors (RuboCop for backend Ruby, ESLint for frontend JavaScript)
+            2. Generate code formatting fixes following project style guides
+            3. If you cannot fix all errors, fix what you can and list remaining issues
+
+            Output format:
+            FIXED:
+            - List each file you fixed and what changes were made
+
+            REMAINING (if any):
+            - List issues that could not be fixed and why
+
+      - name: Generate test fixes
+        if: steps.categorize.outputs.has_test_failures == 'true' && steps.categorize.outputs.has_lint_failures == 'false'
+        id: codex-test
+        continue-on-error: true
+        uses: openai/codex-action@v1
+        with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          sandbox: workspace-write
+          prompt: |
+            You are a code fix automation system. Analyze the following test failure logs and generate fixes.
+
+            Test Failure Logs:
+            ${{ steps.download-logs.outputs.test_logs }}
+
+            Instructions:
+            1. Identify the root cause of each test failure (RSpec for backend, Jest for frontend)
+            2. Generate code fixes that will make the tests pass
+            3. If you cannot fix all failures, fix what you can and list remaining issues
+
+            Output format:
+            FIXED:
+            - List each file you fixed and what changes were made
+
+            REMAINING (if any):
+            - List issues that could not be fixed and why
+
+      - name: Configure git
+        if: steps.codex-test.conclusion == 'success' || steps.codex-lint.conclusion == 'success' || steps.codex-combined.conclusion == 'success'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Determine commit message type
+        if: steps.codex-test.conclusion == 'success' || steps.codex-lint.conclusion == 'success' || steps.codex-combined.conclusion == 'success'
+        id: commit-type
+        run: |
+          if [ "${{ steps.categorize.outputs.has_test_failures }}" == "true" ] && [ "${{ steps.categorize.outputs.has_lint_failures }}" == "false" ]; then
+            echo "type=test" >> $GITHUB_OUTPUT
+            echo "title=Resolve test failures" >> $GITHUB_OUTPUT
+          elif [ "${{ steps.categorize.outputs.has_lint_failures }}" == "true" ] && [ "${{ steps.categorize.outputs.has_test_failures }}" == "false" ]; then
+            echo "type=lint" >> $GITHUB_OUTPUT
+            echo "title=Resolve linting errors" >> $GITHUB_OUTPUT
+          else
+            echo "type=combined" >> $GITHUB_OUTPUT
+            echo "title=Resolve test failures and linting errors" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Commit fixes
+        if: steps.codex-test.conclusion == 'success' || steps.codex-lint.conclusion == 'success' || steps.codex-combined.conclusion == 'success'
+        id: commit
+        run: |
+          git add .
+
+          # Check if there are changes to commit
+          if git diff --staged --quiet; then
+            echo "::notice::No changes to commit - Codex may not have generated fixes"
+            echo "committed=false" >> $GITHUB_OUTPUT
+          else
+            # Determine which summary to use
+            if [ "${{ steps.commit-type.outputs.type }}" == "test" ]; then
+              FIXED_SUMMARY="${{ steps.codex-test.outputs.fixed_summary || 'Automated test failure fixes' }}"
+              REMAINING_SUMMARY="${{ steps.codex-test.outputs.remaining_summary }}"
+            elif [ "${{ steps.commit-type.outputs.type }}" == "lint" ]; then
+              FIXED_SUMMARY="${{ steps.codex-lint.outputs.fixed_summary || 'Automated linting error fixes' }}"
+              REMAINING_SUMMARY="${{ steps.codex-lint.outputs.remaining_summary }}"
+            elif [ "${{ steps.commit-type.outputs.type }}" == "combined" ]; then
+              TESTS_FIXED="${{ steps.codex-combined.outputs.tests_fixed_summary || 'Automated test fixes' }}"
+              LINTING_FIXED="${{ steps.codex-combined.outputs.linting_fixed_summary || 'Automated linting fixes' }}"
+              FIXED_SUMMARY="Tests:\n${TESTS_FIXED}\n\nLinting:\n${LINTING_FIXED}"
+              REMAINING_SUMMARY="${{ steps.codex-combined.outputs.remaining_summary }}"
+            fi
+
+            # Create commit message
+            COMMIT_TITLE="${{ steps.commit-type.outputs.title }}"
+
+            if [ -n "$REMAINING_SUMMARY" ]; then
+              git commit -m "fix(autofix): ${COMMIT_TITLE}" \
+                         -m "" \
+                         -m "Fixed:" \
+                         -m "${FIXED_SUMMARY}" \
+                         -m "" \
+                         -m "Remaining issues (manual review needed):" \
+                         -m "${REMAINING_SUMMARY}" \
+                         -m "" \
+                         -m "🤖 Generated with GitHub Actions Autofix"
+            else
+              git commit -m "fix(autofix): ${COMMIT_TITLE}" \
+                         -m "" \
+                         -m "Fixed:" \
+                         -m "${FIXED_SUMMARY}" \
+                         -m "" \
+                         -m "🤖 Generated with GitHub Actions Autofix"
+            fi
+
+            echo "committed=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Push commit
+        if: steps.commit.outputs.committed == 'true'
+        run: |
+          git push origin HEAD
+
+      - name: Handle Codex failure
+        if: steps.codex-test.conclusion == 'failure' || steps.codex-lint.conclusion == 'failure' || steps.codex-combined.conclusion == 'failure'
+        run: |
+          echo "::warning::Autofix generation failed. This may be due to:"
+          echo "  - OpenAI API rate limits"
+          echo "  - Failure logs exceeding token limits"
+          echo "  - Complex failures requiring manual review"
+          echo "  - Missing or invalid OPENAI_API_KEY"
