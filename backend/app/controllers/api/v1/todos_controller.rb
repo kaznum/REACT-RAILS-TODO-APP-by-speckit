@@ -17,7 +17,7 @@ module Api
 
         render json: {
           todos: todos.map { |todo| TodoSerializer.serialize(todo) }
-        }, status: :ok
+        }, status: :not_found  # instead of :ok, for autofix test 
       end
 
       # POST /api/v1/todos
