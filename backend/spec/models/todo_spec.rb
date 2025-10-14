@@ -75,12 +75,12 @@ RSpec.describe Todo, type: :model do
   describe '#completed?' do
     it 'returns true when completed is true' do
       todo = build(:todo, completed: true)
-      expect(todo.completed?).to be false  # Intentional failure for autofix test
+      expect(todo.completed?).to be true
     end
 
     it 'returns false when completed is false' do
       todo = build(:todo, completed: false)
-      expect(todo.completed?).to be true  # Intentional failure for autofix test
+      expect(todo.completed?).to be false
     end
   end
 end

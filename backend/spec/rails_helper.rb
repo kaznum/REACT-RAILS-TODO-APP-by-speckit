@@ -9,6 +9,25 @@ abort('The Rails environment is running in production mode!') if Rails.env.produ
 require 'rspec/rails'
 # Add additional requires below this line. Rails is not loaded until this point!
 
+# Ensure the test suite can safely reuse a SQLite database that might have been
+# initialized in another environment (e.g., development). CI can stumble on this
+# when the `ar_internal_metadata` table reports a different environment than the
+# current one (Rails raises ActiveRecord::EnvironmentMismatchError). We gently
+# realign the stored environment to the test suite before migrations run.
+if defined?(ActiveRecord::InternalMetadata)
+  begin
+    connection = ActiveRecord::Base.connection
+    metadata = ActiveRecord::InternalMetadata
+
+    if connection.data_source_exists?(metadata.table_name)
+      stored_env = metadata[:environment]
+      metadata[:environment] = Rails.env if stored_env != Rails.env
+    end
+  rescue ActiveRecord::NoDatabaseError, ActiveRecord::StatementInvalid
+    # Database is not ready yet; the migration helper below will create it.
+  end
+end
+
 # Requires supporting ruby files with custom matchers and macros, etc, in
 # spec/support/ and its subdirectories. Files matching `spec/**/*_spec.rb` are
 # run as spec files by default. This means that files in spec/support that end
