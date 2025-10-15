@@ -19,8 +19,25 @@ if defined?(ActiveRecord::InternalMetadata)
     connection = ActiveRecord::Base.connection
     metadata = ActiveRecord::InternalMetadata
 
-    if connection.respond_to?(:data_source_exists?) &&
-       connection.data_source_exists?(metadata.table_name)
+    # Guard adapters that do not implement `data_source_exists?` to avoid boot-time failures.
+    schema_cache = connection.respond_to?(:schema_cache) ? connection.schema_cache : nil
+
+    metadata_exists =
+      begin
+        if schema_cache&.respond_to?(:data_source_exists?)
+          schema_cache.data_source_exists?(metadata.table_name)
+        elsif connection.respond_to?(:data_source_exists?)
+          connection.data_source_exists?(metadata.table_name)
+        elsif connection.respond_to?(:table_exists?)
+          connection.table_exists?(metadata.table_name)
+        else
+          false
+        end
+      rescue NoMethodError
+        connection.respond_to?(:table_exists?) && connection.table_exists?(metadata.table_name)
+      end
+
+    if metadata_exists
       stored_env = metadata[:environment]
       metadata[:environment] = Rails.env if stored_env != Rails.env
     end
