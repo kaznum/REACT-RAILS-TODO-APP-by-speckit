@@ -198,7 +198,7 @@ jobs:
             ${{ steps.download-logs.outputs.failure_logs }}
 
             Instructions:
-            1. Identify all failure types:
+            1. Identify all failure types by static analysis (Do not setup/execute test and lint.):
                - Test failures (RSpec for backend, Jest for frontend)
                - Linting errors (RuboCop for backend Ruby, ESLint for frontend JavaScript)
             2. Generate code fixes for both categories
