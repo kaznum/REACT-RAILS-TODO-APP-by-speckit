@@ -19,9 +19,6 @@ on:
   workflow_run:
     workflows: ["CI"]
     types: [completed]
-    branches-ignore:
-      - main
-      - master
 
 concurrency:
   group: autofix-${{ github.event.workflow_run.pull_requests[0].number }}
@@ -37,12 +34,16 @@ jobs:
     name: Generate and apply fixes
     runs-on: ubuntu-latest
 
-    # Only run if CI workflow failed
-    if: ${{ github.event.workflow_run.conclusion == 'failure' }}
+    # Only run if CI workflow failed and not on main/master branches
+    if: |
+      github.event.workflow_run.conclusion == 'failure' &&
+      github.event.workflow_run.head_branch != 'main' &&
+      github.event.workflow_run.head_branch != 'master' &&
+      github.event.workflow_run.head_branch != '001-todo-google-oauth2'
 
     steps:
       - name: Checkout PR branch
-        uses: actions/checkout@v3
+        uses: actions/checkout@v5
         with:
           ref: ${{ github.event.workflow_run.head_branch }}
           fetch-depth: 2
@@ -135,11 +136,24 @@ jobs:
                     job_id: jobId
                   });
 
-                  failureLogs += `\n\n=== Job: ${jobName} (ID: ${jobId}) ===\n${logResponse.data}\n`;
+                  // Extract only error lines to reduce size (last 200 lines with failures)
+                  const lines = logResponse.data.split('\n');
+                  const errorLines = lines.filter(line =>
+                    line.includes('Error') ||
+                    line.includes('Failure') ||
+                    line.includes('expected') ||
+                    line.includes('FAILED') ||
+                    line.includes('✗') ||
+                    line.includes('error:') ||
+                    line.includes('Expected:') ||
+                    line.includes('Received:')
+                  ).slice(-200).join('\n');
+
+                  failureLogs += `\n\n=== Job: ${jobName} ===\n${errorLines}\n`;
 
                   // Separate test and lint logs
                   if (jobName.includes('Test')) {
-                    testJobLogs += `\n\n=== Job: ${jobName} (ID: ${jobId}) ===\n${logResponse.data}\n`;
+                    testJobLogs += `\n\n=== Job: ${jobName} ===\n${errorLines}\n`;
                   }
                 } catch (error) {
                   core.warning(`Failed to download logs for job ${jobId}: ${error.message}`);
@@ -173,8 +187,10 @@ jobs:
         if: steps.categorize.outputs.has_test_failures == 'true' && steps.categorize.outputs.has_lint_failures == 'true'
         id: codex-combined
         continue-on-error: true
-        uses: openai/codex-action@main
+        uses: openai/codex-action@v1
         with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          sandbox: workspace-write
           prompt: |
             You are a code fix automation system. Analyze the following CI failures (tests + linting) and generate fixes.
 
@@ -182,7 +198,7 @@ jobs:
             ${{ steps.download-logs.outputs.failure_logs }}
 
             Instructions:
-            1. Identify all failure types:
+            1. Identify all failure types by static analysis (Do not setup/execute test and lint.):
                - Test failures (RSpec for backend, Jest for frontend)
                - Linting errors (RuboCop for backend Ruby, ESLint for frontend JavaScript)
             2. Generate code fixes for both categories
@@ -198,15 +214,15 @@ jobs:
             REMAINING (if any):
             - Tests: <unfixed test issues>
             - Linting: <unfixed linting issues>
-        env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
       - name: Generate lint fixes
         if: steps.categorize.outputs.has_lint_failures == 'true' && steps.categorize.outputs.has_test_failures == 'false'
         id: codex-lint
         continue-on-error: true
-        uses: openai/codex-action@main
+        uses: openai/codex-action@v1
         with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          sandbox: workspace-write
           prompt: |
             You are a code fix automation system. Analyze the following linting error logs and generate formatting fixes.
 
@@ -224,15 +240,15 @@ jobs:
 
             REMAINING (if any):
             - List issues that could not be fixed and why
-        env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
       - name: Generate test fixes
         if: steps.categorize.outputs.has_test_failures == 'true' && steps.categorize.outputs.has_lint_failures == 'false'
         id: codex-test
         continue-on-error: true
-        uses: openai/codex-action@main
+        uses: openai/codex-action@v1
         with:
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          sandbox: workspace-write
           prompt: |
             You are a code fix automation system. Analyze the following test failure logs and generate fixes.
 
@@ -250,17 +266,15 @@ jobs:
 
             REMAINING (if any):
             - List issues that could not be fixed and why
-        env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
 
       - name: Configure git
-        if: steps.codex-test.outcome == 'success' || steps.codex-lint.outcome == 'success' || steps.codex-combined.outcome == 'success'
+        if: steps.codex-test.conclusion == 'success' || steps.codex-lint.conclusion == 'success' || steps.codex-combined.conclusion == 'success'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Determine commit message type
-        if: steps.codex-test.outcome == 'success' || steps.codex-lint.outcome == 'success' || steps.codex-combined.outcome == 'success'
+        if: steps.codex-test.conclusion == 'success' || steps.codex-lint.conclusion == 'success' || steps.codex-combined.conclusion == 'success'
         id: commit-type
         run: |
           if [ "${{ steps.categorize.outputs.has_test_failures }}" == "true" ] && [ "${{ steps.categorize.outputs.has_lint_failures }}" == "false" ]; then
@@ -275,7 +289,7 @@ jobs:
           fi
 
       - name: Commit fixes
-        if: steps.codex-test.outcome == 'success' || steps.codex-lint.outcome == 'success' || steps.codex-combined.outcome == 'success'
+        if: steps.codex-test.conclusion == 'success' || steps.codex-lint.conclusion == 'success' || steps.codex-combined.conclusion == 'success'
         id: commit
         run: |
           git add .
@@ -300,23 +314,25 @@ jobs:
             fi
 
             # Create commit message
+            COMMIT_TITLE="${{ steps.commit-type.outputs.title }}"
+
             if [ -n "$REMAINING_SUMMARY" ]; then
-              git commit -m "fix(autofix): ${{ steps.commit-type.outputs.title }}
-
-Fixed:
-${FIXED_SUMMARY}
-
-Remaining issues (manual review needed):
-${REMAINING_SUMMARY}
-
-🤖 Generated with GitHub Actions Autofix"
+              git commit -m "fix(autofix): ${COMMIT_TITLE}" \
+                         -m "" \
+                         -m "Fixed:" \
+                         -m "${FIXED_SUMMARY}" \
+                         -m "" \
+                         -m "Remaining issues (manual review needed):" \
+                         -m "${REMAINING_SUMMARY}" \
+                         -m "" \
+                         -m "🤖 Generated with GitHub Actions Autofix"
             else
-              git commit -m "fix(autofix): ${{ steps.commit-type.outputs.title }}
-
-Fixed:
-${FIXED_SUMMARY}
-
-🤖 Generated with GitHub Actions Autofix"
+              git commit -m "fix(autofix): ${COMMIT_TITLE}" \
+                         -m "" \
+                         -m "Fixed:" \
+                         -m "${FIXED_SUMMARY}" \
+                         -m "" \
+                         -m "🤖 Generated with GitHub Actions Autofix"
             fi
 
             echo "committed=true" >> $GITHUB_OUTPUT
@@ -328,7 +344,7 @@ ${FIXED_SUMMARY}
           git push origin HEAD
 
       - name: Handle Codex failure
-        if: steps.codex-test.outcome == 'failure' || steps.codex-lint.outcome == 'failure' || steps.codex-combined.outcome == 'failure'
+        if: steps.codex-test.conclusion == 'failure' || steps.codex-lint.conclusion == 'failure' || steps.codex-combined.conclusion == 'failure'
         run: |
           echo "::warning::Autofix generation failed. This may be due to:"
           echo "  - OpenAI API rate limits"

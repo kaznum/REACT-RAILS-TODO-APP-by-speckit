@@ -9,6 +9,43 @@ abort('The Rails environment is running in production mode!') if Rails.env.produ
 require 'rspec/rails'
 # Add additional requires below this line. Rails is not loaded until this point!
 
+# Ensure the test suite can safely reuse a SQLite database that might have been
+# initialized in another environment (e.g., development). CI can stumble on this
+# when the `ar_internal_metadata` table reports a different environment than the
+# current one (Rails raises ActiveRecord::EnvironmentMismatchError). We gently
+# realign the stored environment to the test suite before migrations run.
+if defined?(ActiveRecord::InternalMetadata)
+  begin
+    connection = ActiveRecord::Base.connection
+    metadata = ActiveRecord::InternalMetadata
+
+    # Guard adapters that do not implement `data_source_exists?` to avoid boot-time failures.
+    schema_cache = connection.respond_to?(:schema_cache) ? connection.schema_cache : nil
+
+    metadata_exists =
+      begin
+        if schema_cache&.respond_to?(:data_source_exists?)
+          schema_cache.data_source_exists?(metadata.table_name)
+        elsif connection.respond_to?(:data_source_exists?)
+          connection.data_source_exists?(metadata.table_name)
+        elsif connection.respond_to?(:table_exists?)
+          connection.table_exists?(metadata.table_name)
+        else
+          false
+        end
+      rescue NoMethodError
+        connection.respond_to?(:table_exists?) && connection.table_exists?(metadata.table_name)
+      end
+
+    if metadata_exists
+      stored_env = metadata[:environment]
+      metadata[:environment] = Rails.env if stored_env != Rails.env
+    end
+  rescue ActiveRecord::NoDatabaseError, ActiveRecord::StatementInvalid
+    # Database is not ready yet; the migration helper below will create it.
+  end
+end
+
 # Requires supporting ruby files with custom matchers and macros, etc, in
 # spec/support/ and its subdirectories. Files matching `spec/**/*_spec.rb` are
 # run as spec files by default. This means that files in spec/support that end
